@@ -1,0 +1,534 @@
+/*
+ * Gemini Stealth — Google Docs disguise
+ * Everything scoped under html.gsd-stealth so toggling the class
+ * instantly enables/disables the entire theme.
+ * Gemini's DOM is NEVER moved — only restyled.
+ */
+
+/* ============================================
+   1. OVERLAY HEADER & TOOLBAR (injected by JS)
+   ============================================ */
+
+.gsd-bar {
+  display: none;
+}
+
+html.gsd-stealth .gsd-bar {
+  display: flex;
+}
+
+html.gsd-stealth .gsd-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: #fff;
+  border-bottom: 1px solid #dadce0;
+  z-index: 99999;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  box-sizing: border-box;
+  font-family: "Google Sans", "Roboto", Arial, sans-serif;
+}
+
+.gsd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gsd-logo {
+  flex-shrink: 0;
+}
+
+.gsd-title-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gsd-doc-title {
+  font-size: 16px;
+  font-weight: 400;
+  color: #202124;
+  line-height: 22px;
+  outline: none;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 320px;
+  cursor: text;
+}
+
+.gsd-doc-title:hover {
+  border-color: #dadce0;
+}
+
+.gsd-doc-title:focus {
+  border-color: #1a73e8;
+}
+
+.gsd-menu-row {
+  display: flex;
+  gap: 2px;
+  margin-top: -2px;
+}
+
+.gsd-menu-item {
+  font-size: 12px;
+  color: #202124;
+  padding: 1px 7px;
+  border-radius: 3px;
+  cursor: default;
+  line-height: 22px;
+}
+
+.gsd-menu-item:hover {
+  background: #e8eaed;
+}
+
+.gsd-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gsd-header-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+}
+
+.gsd-header-icon:hover {
+  background: #e8eaed;
+}
+
+.gsd-share-btn {
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 32px;
+  border-radius: 16px;
+  background: #1a73e8;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  cursor: default;
+  font-family: inherit;
+}
+
+.gsd-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #78909c;
+  margin-left: 4px;
+}
+
+/* --- Toolbar --- */
+html.gsd-stealth .gsd-toolbar {
+  position: fixed;
+  top: 48px;
+  left: 0;
+  right: 0;
+  height: 36px;
+  background: #edf2fa;
+  border-bottom: 1px solid #dadce0;
+  z-index: 99998;
+  align-items: center;
+  padding: 0 8px;
+  box-sizing: border-box;
+  gap: 2px;
+  border-radius: 0 0 8px 8px;
+  margin: 0 4px;
+  font-family: "Google Sans", "Roboto", Arial, sans-serif;
+}
+
+.gsd-tb-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.gsd-tb-sep {
+  width: 1px;
+  height: 20px;
+  background: #c4c7c5;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.gsd-tb-btn {
+  width: 26px;
+  height: 26px;
+  border: none;
+  background: transparent;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  padding: 0;
+  color: #444;
+}
+
+.gsd-tb-btn:hover {
+  background: #d3d3d3;
+}
+
+.gsd-tb-fmt {
+  font-size: 14px;
+}
+
+.gsd-tb-select {
+  height: 24px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: #202124;
+  padding: 0 4px;
+  border-radius: 3px;
+  cursor: default;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none;
+}
+
+.gsd-tb-zoom { width: 52px; }
+.gsd-tb-style { width: 88px; }
+.gsd-tb-font { width: 80px; }
+
+.gsd-tb-fontsize {
+  width: 28px;
+  height: 22px;
+  border: 1px solid #c4c7c5;
+  border-radius: 3px;
+  text-align: center;
+  font-size: 11px;
+  background: transparent;
+  color: #202124;
+  margin: 0 1px;
+}
+
+.gsd-tb-size-btn {
+  width: 22px;
+  height: 22px;
+  font-size: 16px;
+}
+
+
+/* ============================================
+   2. GLOBAL PAGE RE-THEME
+   ============================================ */
+
+html.gsd-stealth {
+  background: #f0f0f0 !important;
+}
+
+html.gsd-stealth body {
+  background: #f0f0f0 !important;
+  padding-top: 86px !important;
+  font-family: "Google Sans", "Roboto", Arial, sans-serif !important;
+}
+
+/* ============================================
+   3. HIDE GEMINI BRANDING / HEADERS
+   ============================================ */
+
+/* Gemini's own top header — hide it so ours takes over */
+html.gsd-stealth header,
+html.gsd-stealth [role="banner"] {
+  display: none !important;
+}
+
+/* Gemini logo / sparkle / branding elements */
+html.gsd-stealth .logo-container,
+html.gsd-stealth [data-test-id="bard-logo"],
+html.gsd-stealth img[src*="gemini"],
+html.gsd-stealth img[src*="bard"],
+html.gsd-stealth .sparkle,
+html.gsd-stealth [class*="sparkle"] {
+  visibility: hidden !important;
+  height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Model picker / upgrade buttons in header area */
+html.gsd-stealth [class*="model-picker"],
+html.gsd-stealth [class*="upgrade"] {
+  display: none !important;
+}
+
+/* ============================================
+   4. SIDEBAR — looks like a doc outline panel
+   ============================================ */
+
+html.gsd-stealth nav,
+html.gsd-stealth [role="navigation"],
+html.gsd-stealth aside {
+  background: #f8f9fa !important;
+  border-right: 1px solid #dadce0 !important;
+  box-shadow: none !important;
+  padding-top: 86px !important;
+}
+
+/* Kill any Gemini gradients or colorful backgrounds in sidebar */
+html.gsd-stealth nav *,
+html.gsd-stealth [role="navigation"] *,
+html.gsd-stealth aside * {
+  background-image: none !important;
+}
+
+/* Sidebar links / chat history items — look like outline items */
+html.gsd-stealth nav a,
+html.gsd-stealth [role="navigation"] a,
+html.gsd-stealth aside a {
+  color: #202124 !important;
+  font-size: 13px !important;
+  border-radius: 0 16px 16px 0 !important;
+}
+
+html.gsd-stealth nav a:hover,
+html.gsd-stealth [role="navigation"] a:hover,
+html.gsd-stealth aside a:hover {
+  background: #e8eaed !important;
+}
+
+/* "New chat" button — restyle to look like a Docs "+" */
+html.gsd-stealth nav button,
+html.gsd-stealth [role="navigation"] button,
+html.gsd-stealth aside button {
+  background: transparent !important;
+  color: #202124 !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+html.gsd-stealth nav button:hover,
+html.gsd-stealth [role="navigation"] button:hover,
+html.gsd-stealth aside button:hover {
+  background: #e8eaed !important;
+}
+
+/* ============================================
+   5. MAIN CONTENT AREA — "page" look
+   ============================================ */
+
+html.gsd-stealth main,
+html.gsd-stealth [role="main"] {
+  background: #f0f0f0 !important;
+}
+
+/* The conversation / response container — make it page-like */
+html.gsd-stealth .conversation-container,
+html.gsd-stealth [class*="conversation"],
+html.gsd-stealth [class*="response-container"],
+html.gsd-stealth [class*="chat-container"] {
+  max-width: 860px !important;
+  margin: 0 auto !important;
+  background: #fff !important;
+  box-shadow: 0 0 0 1px #dadce0, 0 1px 3px rgba(60,64,67,0.15) !important;
+  padding: 48px 72px !important;
+  min-height: 600px !important;
+  border-radius: 0 !important;
+}
+
+/* ============================================
+   6. CHAT MESSAGES — plain document paragraphs
+   ============================================ */
+
+/* Remove chat bubble styling */
+html.gsd-stealth [class*="message-content"],
+html.gsd-stealth [class*="response-content"],
+html.gsd-stealth [class*="query-content"],
+html.gsd-stealth [data-message-author-role] {
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+  padding: 8px 0 !important;
+  margin: 0 !important;
+  max-width: 100% !important;
+}
+
+/* Remove avatars / profile pictures in chat */
+html.gsd-stealth [class*="avatar"],
+html.gsd-stealth [class*="user-image"],
+html.gsd-stealth [class*="profile-icon"] {
+  display: none !important;
+}
+
+/* But keep our own header avatar */
+html.gsd-stealth .gsd-avatar {
+  display: block !important;
+}
+
+/* Message text — doc-like typography */
+html.gsd-stealth [class*="message"] p,
+html.gsd-stealth [class*="response"] p,
+html.gsd-stealth [class*="markdown"] p {
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+  color: #202124 !important;
+  margin: 0 0 10px !important;
+}
+
+html.gsd-stealth [class*="message"] h1,
+html.gsd-stealth [class*="response"] h1,
+html.gsd-stealth [class*="markdown"] h1 {
+  font-size: 20px !important;
+  color: #202124 !important;
+}
+
+html.gsd-stealth [class*="message"] h2,
+html.gsd-stealth [class*="response"] h2,
+html.gsd-stealth [class*="markdown"] h2 {
+  font-size: 16px !important;
+  color: #202124 !important;
+}
+
+html.gsd-stealth [class*="message"] li {
+  font-size: 14px !important;
+  line-height: 1.65 !important;
+  color: #202124 !important;
+}
+
+/* Code blocks — minimal, doc-like */
+html.gsd-stealth pre,
+html.gsd-stealth code {
+  background: #f8f9fa !important;
+  border: 1px solid #dadce0 !important;
+  border-radius: 2px !important;
+  color: #202124 !important;
+  font-family: "Roboto Mono", "Consolas", monospace !important;
+  font-size: 12px !important;
+}
+
+html.gsd-stealth pre {
+  padding: 12px 16px !important;
+  margin: 8px 0 !important;
+  overflow-x: auto !important;
+}
+
+/* ============================================
+   7. INPUT AREA — looks like doc footer
+   ============================================ */
+
+html.gsd-stealth [class*="input-area"],
+html.gsd-stealth [class*="prompt-area"],
+html.gsd-stealth [class*="text-input"],
+html.gsd-stealth [class*="bottom-container"] {
+  background: #f0f0f0 !important;
+  border-top: none !important;
+  box-shadow: none !important;
+}
+
+html.gsd-stealth textarea,
+html.gsd-stealth [contenteditable="true"],
+html.gsd-stealth [role="textbox"],
+html.gsd-stealth [class*="ql-editor"],
+html.gsd-stealth rich-textarea {
+  background: #fff !important;
+  border: 1px solid #dadce0 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  color: #202124 !important;
+  font-size: 14px !important;
+}
+
+html.gsd-stealth textarea:focus,
+html.gsd-stealth [contenteditable="true"]:focus,
+html.gsd-stealth [role="textbox"]:focus {
+  border-color: #1a73e8 !important;
+  outline: none !important;
+}
+
+/* Send button — muted */
+html.gsd-stealth [class*="send-button"],
+html.gsd-stealth [aria-label*="Send"],
+html.gsd-stealth [aria-label*="send"],
+html.gsd-stealth [data-test-id*="send"] {
+  background: #1a73e8 !important;
+  border-radius: 50% !important;
+}
+
+/* ============================================
+   8. KILL GRADIENTS, ANIMATIONS, COLOR POPS
+   ============================================ */
+
+html.gsd-stealth [style*="linear-gradient"],
+html.gsd-stealth [style*="radial-gradient"] {
+  background-image: none !important;
+  background: #f0f0f0 !important;
+}
+
+/* Mute Gemini's colorful SVGs/icons */
+html.gsd-stealth svg:not(.gsd-logo):not([class*="gsd-"]) {
+  filter: grayscale(80%) !important;
+  opacity: 0.7 !important;
+}
+
+/* But keep our own toolbar/header SVGs crisp */
+html.gsd-stealth .gsd-bar svg {
+  filter: none !important;
+  opacity: 1 !important;
+}
+
+/* ============================================
+   9. SCROLLBAR
+   ============================================ */
+
+html.gsd-stealth ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+html.gsd-stealth ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html.gsd-stealth ::-webkit-scrollbar-thumb {
+  background: #bdc1c6;
+  border-radius: 4px;
+}
+
+html.gsd-stealth ::-webkit-scrollbar-thumb:hover {
+  background: #9aa0a6;
+}
+
+/* ============================================
+  10. MISC / CLEANUP
+   ============================================ */
+
+/* Gemini disclaimer / footer text */
+html.gsd-stealth [class*="disclaimer"],
+html.gsd-stealth [class*="footer-text"] {
+  color: #9aa0a6 !important;
+  font-size: 11px !important;
+}
+
+/* Buttons that aren't ours — mute them */
+html.gsd-stealth button:not([class*="gsd-"]) {
+  border-radius: 4px !important;
+}
+
+/* Tooltips, modals — keep functional but restyle */
+html.gsd-stealth [role="dialog"],
+html.gsd-stealth [role="tooltip"] {
+  border-radius: 4px !important;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15) !important;
+  border: 1px solid #dadce0 !important;
+}
+
+/* Fix the favicon to Google Docs blue page icon */
