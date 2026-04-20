@@ -2,7 +2,7 @@
 
 A lightweight Chrome extension that applies a Docs-themed writing interface for `gemini.google.com`.
 
-**Disclaimer:** This project is not affiliated with Google.
+This is just for fun and obviously not affiliated with Google. 
 
 ## Features
 
