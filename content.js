@@ -43,12 +43,14 @@
     overlay.innerHTML = `
       <div class="gsd-header">
         <div class="gsd-header-left">
-          <svg class="gsd-logo" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
-            <path fill="#1a73e8" d="M6 2.5h8l4 4v14A1.5 1.5 0 0 1 16.5 22h-10A1.5 1.5 0 0 1 5 20.5V4A1.5 1.5 0 0 1 6.5 2.5z"/>
-            <path fill="#8ab4f8" d="M14 2.5v3A1.5 1.5 0 0 0 15.5 7h3z"/>
-            <path fill="#fff" d="M8 10h8v1.2H8zm0 2.6h8v1.2H8zm0 2.6h5.6v1.2H8z"/>
-            <path fill="#34a853" d="M15.9 16.3l2.3 2.3-3.7 1.4 1.4-3.7z"/>
-          </svg>
+          <button class="gsd-logo-btn" title="Docs home" aria-label="Docs home">
+            <svg class="gsd-logo" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
+              <path fill="#1a73e8" d="M6 2.5h8l4 4v14A1.5 1.5 0 0 1 16.5 22h-10A1.5 1.5 0 0 1 5 20.5V4A1.5 1.5 0 0 1 6.5 2.5z"/>
+              <path fill="#8ab4f8" d="M14 2.5v3A1.5 1.5 0 0 0 15.5 7h3z"/>
+              <path fill="#fff" d="M8 10h8v1.2H8zm0 2.6h8v1.2H8zm0 2.6h5.6v1.2H8z"/>
+              <path fill="#34a853" d="M15.9 16.3l2.3 2.3-3.7 1.4 1.4-3.7z"/>
+            </svg>
+          </button>
           <div class="gsd-doc-title" title="Current chat">Loading…</div>
         </div>
 
@@ -104,6 +106,41 @@
           </div>
         </div>
       </div>
+
+      <div class="gsd-home" role="region" aria-label="Docs home">
+        <div class="gsd-home-top">
+          <div class="gsd-home-top-row">
+            <div class="gsd-home-top-title">Start a new chat</div>
+          </div>
+          <div class="gsd-home-templates">
+            <button class="gsd-home-blank" title="Blank">
+              <div class="gsd-home-blank-card">
+                <div class="gsd-home-blank-plus">+</div>
+              </div>
+              <div class="gsd-home-blank-label">Blank</div>
+            </button>
+          </div>
+        </div>
+
+        <div class="gsd-home-list-section">
+          <div class="gsd-home-list-header">
+            <div class="gsd-home-list-title">Recent chats</div>
+            <div class="gsd-home-search-wrap">
+              <svg class="gsd-home-search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+                <path fill="#5f6368" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>
+              </svg>
+              <input
+                class="gsd-home-search"
+                type="text"
+                placeholder="Search chats"
+                aria-label="Search chats"
+              />
+            </div>
+          </div>
+          <div class="gsd-home-list"></div>
+          <div class="gsd-home-empty" hidden>No chats found.</div>
+        </div>
+      </div>
     `;
     document.documentElement.appendChild(overlay);
     messagesEl = overlay.querySelector(".gsd-messages");
@@ -114,11 +151,18 @@
 
     wireInput();
     wireHeaderButtons();
+    wireHome();
   }
 
   function wireHeaderButtons() {
+    overlay.querySelector(".gsd-logo-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      closePanels();
+      showHome();
+    });
     overlay.querySelector(".gsd-btn-new").addEventListener("click", () => {
       closePanels();
+      hideHome();
       triggerNewChat();
     });
     overlay.querySelector(".gsd-btn-chats").addEventListener("click", (e) => {
@@ -326,6 +370,98 @@
       });
       list.appendChild(item);
     });
+  }
+
+  /* ====== Docs-style home ======
+   *
+   * Lightweight landing view that mirrors the Docs home: a single "Blank"
+   * card to start a new chat, a local search filter, and a list of Gemini's
+   * recent chats. We only surface data Gemini actually provides — no fake
+   * timestamps, owners, or template cards.
+   */
+
+  let homeActive = false;
+
+  function showHome() {
+    if (!overlay) return;
+    homeActive = true;
+    overlay.classList.add("gsd-home-active");
+    renderHome();
+    if (titleEl) titleEl.textContent = "Docs";
+    const search = overlay.querySelector(".gsd-home-search");
+    if (search) {
+      search.value = "";
+      setTimeout(() => search.focus(), 0);
+    }
+  }
+
+  function hideHome() {
+    if (!overlay) return;
+    homeActive = false;
+    overlay.classList.remove("gsd-home-active");
+    // Let syncTitle repopulate the real chat title on the next tick.
+    syncTitle();
+  }
+
+  function renderHome(filter) {
+    const listEl = overlay.querySelector(".gsd-home-list");
+    const emptyEl = overlay.querySelector(".gsd-home-empty");
+    if (!listEl || !emptyEl) return;
+    listEl.innerHTML = "";
+
+    const q = (filter || "").trim().toLowerCase();
+    const chats = readChats().filter((c) =>
+      q ? c.text.toLowerCase().includes(q) : true
+    );
+
+    if (chats.length === 0) {
+      emptyEl.hidden = false;
+      emptyEl.textContent = q
+        ? "No chats match your search."
+        : "No recent chats found. Open the Gemini sidebar once, then try again.";
+      return;
+    }
+    emptyEl.hidden = true;
+
+    chats.forEach((chat) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "gsd-home-row";
+      row.innerHTML = `
+        <svg class="gsd-home-row-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+          <path fill="#1a73e8" d="M6 2.5h8l4 4v14A1.5 1.5 0 0 1 16.5 22h-10A1.5 1.5 0 0 1 5 20.5V4A1.5 1.5 0 0 1 6.5 2.5z"/>
+          <path fill="#8ab4f8" d="M14 2.5v3A1.5 1.5 0 0 0 15.5 7h3z"/>
+          <path fill="#fff" d="M8 10h8v1.2H8zm0 2.6h8v1.2H8zm0 2.6h5.6v1.2H8z"/>
+        </svg>
+        <div class="gsd-home-row-title"></div>
+      `;
+      row.querySelector(".gsd-home-row-title").textContent = chat.text;
+      row.addEventListener("click", () => {
+        hideHome();
+        chat.el.click();
+      });
+      listEl.appendChild(row);
+    });
+  }
+
+  function wireHome() {
+    const blank = overlay.querySelector(".gsd-home-blank");
+    if (blank) {
+      blank.addEventListener("click", () => {
+        hideHome();
+        triggerNewChat();
+      });
+    }
+    const search = overlay.querySelector(".gsd-home-search");
+    if (search) {
+      search.addEventListener("input", () => renderHome(search.value));
+      search.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          search.value = "";
+          renderHome("");
+        }
+      });
+    }
   }
 
   /* ====== Model picker ====== */
@@ -913,7 +1049,9 @@
       .replace(/\s*[-—–|]\s*(Google\s+Gemini|Gemini|Docs).*$/i, "")
       .trim();
     if (!chat || /^(gemini|google gemini|new chat)$/i.test(chat)) chat = "Untitled";
-    if (titleEl && titleEl.textContent !== chat) titleEl.textContent = chat;
+    if (titleEl && !homeActive && titleEl.textContent !== chat) {
+      titleEl.textContent = chat;
+    }
 
     const desiredTab = chat + " - Docs";
     if (document.title !== desiredTab) document.title = desiredTab;
