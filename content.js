@@ -927,10 +927,54 @@
     }
   }
 
+  /* ====== Scroll sync ======
+   *
+   * Lightest-weight approach: on toggle only, map scroll *ratio* between
+   * Gemini's scroll container and our workspace. No listeners, no intervals,
+   * no per-frame work. Gemini defaults to the bottom of the chat, so first
+   * enable naturally lands at the bottom of the doc too (ratio ≈ 1).
+   */
+
+  function findGeminiScrollContainer() {
+    const anchor =
+      document.querySelector("user-query, model-response") ||
+      document.querySelector("chat-window, chat-window-content");
+    let el = anchor;
+    while (el && el !== document.body) {
+      const cs = getComputedStyle(el);
+      const oy = cs.overflowY;
+      if (
+        (oy === "auto" || oy === "scroll") &&
+        el.scrollHeight - el.clientHeight > 4
+      ) {
+        return el;
+      }
+      el = el.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  }
+
+  function getScrollRatio(el) {
+    if (!el) return 1;
+    const max = el.scrollHeight - el.clientHeight;
+    if (max <= 0) return 1;
+    return Math.max(0, Math.min(1, el.scrollTop / max));
+  }
+
+  function applyScrollRatio(el, ratio) {
+    if (!el) return;
+    const max = el.scrollHeight - el.clientHeight;
+    if (max <= 0) return;
+    el.scrollTop = Math.round(max * ratio);
+  }
+
   /* ====== Enable / disable ====== */
 
   function enable() {
     active = true;
+    const geminiScroll = findGeminiScrollContainer();
+    const geminiRatio = getScrollRatio(geminiScroll);
+
     if (!overlay) buildOverlay();
     document.documentElement.classList.add(STEALTH_CLASS);
     // Reset all sync state so we always render from scratch when re-entering
@@ -942,16 +986,31 @@
     if (syncInterval) clearInterval(syncInterval);
     syncInterval = setInterval(syncMessages, 700);
     safeStorageSet({ gsdActive: true });
+
+    // Apply after layout + pagination settle so scrollHeight is correct.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const ws = overlay?.querySelector(".gsd-workspace");
+        applyScrollRatio(ws, geminiRatio);
+      });
+    });
   }
 
   function disable() {
     active = false;
+    const ws = overlay?.querySelector(".gsd-workspace");
+    const wsRatio = getScrollRatio(ws);
+
     document.documentElement.classList.remove(STEALTH_CLASS);
     if (syncInterval) {
       clearInterval(syncInterval);
       syncInterval = null;
     }
     safeStorageSet({ gsdActive: false });
+
+    requestAnimationFrame(() => {
+      applyScrollRatio(findGeminiScrollContainer(), wsRatio);
+    });
   }
 
   function toggle() {
