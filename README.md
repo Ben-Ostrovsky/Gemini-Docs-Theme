@@ -14,7 +14,7 @@ A lightweight Chrome extension that applies a Docs-themed writing interface on `
 
 ## Screenshots
 
-**Onggoing chat** - View inside a standard chat.
+**Ongoing chat** - View inside a standard chat.
 
 ![Ongoing chat view](./screenshots/chat.png)
 
