@@ -14,25 +14,25 @@ A lightweight Chrome extension that applies a Docs-themed writing interface on `
 
 ## Screenshots
 
-**Main chat view** - View inside a standard chat.
+**Onggoing chat** - View inside a standard chat.
 
-![Main chat view](./screenshots/chat.png)
+![Ongoing chat view](./screenshots/chat.png)
 
 ---
 
-**New chat flow** - View inside a new chat (can toggle temporary chat).
+**New chat** - View inside a new chat (can toggle temporary chat).
 
 ![New chat view](./screenshots/newChat.png)
 
 ---
 
-**Home + search view** - Can look through old chats and open them. Can use the gemini search chat feature.
+**Home** - Can look through old chats and open them. Can use the gemini search chat feature.
 
-![Home + search view](./screenshots/home.png)
+![Home view](./screenshots/home.png)
 
 ---
 
-**Model selection** - Switching Gemini models inside a chat.
+**Change Model** - Switching Gemini models inside a chat.
 
-![Select Model](./screenshots/modelSelect.png)
+![Select Model view](./screenshots/modelSelect.png)
 
