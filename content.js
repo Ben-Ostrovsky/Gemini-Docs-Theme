@@ -910,12 +910,12 @@
   function syncTitle() {
     const raw = document.title || "";
     let chat = raw
-      .replace(/\s*[-—–|]\s*(Google\s+Gemini|Gemini|Google Docs).*$/i, "")
+      .replace(/\s*[-—–|]\s*(Google\s+Gemini|Gemini|Docs).*$/i, "")
       .trim();
     if (!chat || /^(gemini|google gemini|new chat)$/i.test(chat)) chat = "Untitled";
     if (titleEl && titleEl.textContent !== chat) titleEl.textContent = chat;
 
-    const desiredTab = chat + " - Google Docs";
+    const desiredTab = chat + " - Docs";
     if (document.title !== desiredTab) document.title = desiredTab;
   }
 
