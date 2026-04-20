@@ -1,9 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Gemini Stealth Docs Theme",
-  "description": "Re-theme gemini.google.com to look like Google Docs for stealth use.",
+  "name": "Gemini Stealth Theme",
+  "description": "Re-theme gemini.google.com to look like Docs for stealth use.",
   "version": "1.0.0",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["https://gemini.google.com/*"],
   "content_scripts": [
     {
       "matches": ["https://gemini.google.com/*"],
@@ -12,8 +13,8 @@
       "run_at": "document_start"
     }
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
-  "action": {}
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Gemini Stealth"
+  }
 }

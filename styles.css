@@ -1,493 +1,468 @@
 /*
- * Gemini Stealth — Google Docs disguise
- * Scoped under html.gsd-stealth so toggling the class
- * instantly enables/disables everything.
- *
- * Strategy: force the ENTIRE page white/light. No centered
- * "page box" — the whole viewport IS the document.
+ * Gemini Stealth — overlay UI.
+ * Gemini's DOM is never modified. All styles scoped to #gsd-overlay.
  */
 
-/* ============================================
-   OVERLAY: HEADER & TOOLBAR (injected by JS)
-   ============================================ */
+/* ========================================
+   OVERLAY VISIBILITY
+   ======================================== */
 
-.gsd-bar {
-  display: none !important;
-}
+#gsd-overlay { display: none; }
 
-html.gsd-stealth .gsd-bar {
-  display: flex !important;
-}
+html.gsd-stealth { overflow: hidden !important; }
 
-html.gsd-stealth .gsd-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 48px;
-  background: #fff;
-  border-bottom: 1px solid #dadce0;
-  z-index: 99999;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
-  box-sizing: border-box;
-  font-family: "Google Sans", "Roboto", Arial, sans-serif;
-}
-
-.gsd-header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.gsd-logo { flex-shrink: 0; }
-
-.gsd-title-block {
+html.gsd-stealth #gsd-overlay {
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: #f9fbfd;
+  font-family: "Google Sans", "Roboto", Arial, sans-serif;
+  color: #202124;
+  overflow: hidden;
 }
 
-.gsd-doc-title {
-  font-size: 16px;
+/* ========================================
+   HEADER (only functional items)
+   ======================================== */
+
+#gsd-overlay .gsd-header {
+  height: 56px;
+  background: #fff;
+  border-bottom: 1px solid #dadce0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+#gsd-overlay .gsd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+#gsd-overlay .gsd-logo { flex-shrink: 0; }
+
+#gsd-overlay .gsd-doc-title {
+  font-size: 18px;
   font-weight: 400;
   color: #202124;
-  line-height: 22px;
-  outline: none;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  padding: 0 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 320px;
-  cursor: text;
-}
-.gsd-doc-title:hover { border-color: #dadce0; }
-.gsd-doc-title:focus { border-color: #1a73e8; }
-
-.gsd-menu-row {
-  display: flex;
-  gap: 2px;
-  margin-top: -2px;
+  max-width: 60vw;
+  user-select: none;
 }
 
-.gsd-menu-item {
-  font-size: 12px;
-  color: #202124;
-  padding: 1px 7px;
-  border-radius: 3px;
-  cursor: default;
-  line-height: 22px;
-}
-.gsd-menu-item:hover { background: #e8eaed; }
-
-.gsd-header-right {
+#gsd-overlay .gsd-header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.gsd-header-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: default;
-}
-.gsd-header-icon:hover { background: #e8eaed; }
-
-.gsd-share-btn {
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  height: 32px;
-  border-radius: 16px;
-  background: #1a73e8;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 500;
-  border: none;
-  cursor: default;
-  font-family: inherit;
-}
-
-.gsd-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: #78909c;
-  margin-left: 4px;
-}
-
-/* --- Toolbar --- */
-html.gsd-stealth .gsd-toolbar {
-  position: fixed;
-  top: 48px;
-  left: 0;
-  right: 0;
-  height: 36px;
-  background: #edf2fa;
-  border-bottom: 1px solid #dadce0;
-  z-index: 99998;
-  align-items: center;
-  padding: 0 8px;
-  box-sizing: border-box;
-  gap: 2px;
-  font-family: "Google Sans", "Roboto", Arial, sans-serif;
-}
-
-.gsd-tb-group { display: flex; align-items: center; gap: 1px; }
-
-.gsd-tb-sep {
-  width: 1px;
-  height: 20px;
-  background: #c4c7c5;
-  margin: 0 4px;
+  gap: 6px;
   flex-shrink: 0;
 }
 
-.gsd-tb-btn {
-  width: 26px;
-  height: 26px;
-  border: none;
-  background: transparent;
-  border-radius: 3px;
-  display: flex;
+#gsd-overlay .gsd-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  cursor: default;
-  padding: 0;
-  color: #444;
-}
-.gsd-tb-btn:hover { background: #d3d3d3; }
-.gsd-tb-fmt { font-size: 14px; }
-
-.gsd-tb-select {
-  height: 24px;
-  border: none;
-  background: transparent;
-  font-size: 12px;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #dadce0;
+  border-radius: 18px;
+  background: #fff;
   color: #202124;
-  padding: 0 4px;
-  border-radius: 3px;
-  cursor: default;
-  -webkit-appearance: none;
-  appearance: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, box-shadow 0.15s;
+  white-space: nowrap;
+}
+
+#gsd-overlay .gsd-btn:hover {
+  background: #f1f3f4;
+  box-shadow: 0 1px 2px rgba(60,64,67,0.1);
+}
+
+#gsd-overlay .gsd-btn:active {
+  background: #e8eaed;
+}
+
+#gsd-overlay .gsd-btn svg { flex-shrink: 0; }
+
+#gsd-overlay .gsd-btn-new { padding: 0 14px 0 10px; }
+#gsd-overlay .gsd-btn-chats { padding: 0 14px 0 10px; }
+#gsd-overlay .gsd-btn-model {
+  background: #e8f0fe;
+  color: #1a73e8;
+  border-color: transparent;
+}
+#gsd-overlay .gsd-btn-model:hover { background: #d2e3fc; }
+#gsd-overlay .gsd-btn-model svg path { fill: #1a73e8; }
+#gsd-overlay .gsd-btn-temp {
+  font-weight: 500;
+}
+
+#gsd-overlay .gsd-btn-temp.is-on {
+  background: #fce8e6;
+  color: #c5221f;
+  border-color: transparent;
+}
+
+#gsd-overlay .gsd-btn-temp.is-on:hover {
+  background: #fadcd9;
+}
+
+#gsd-overlay .gsd-model-label {
+  font-weight: 500;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ========================================
+   DROPDOWN PANELS
+   ======================================== */
+
+#gsd-overlay .gsd-panel {
+  display: none;
+  position: absolute;
+  top: 52px;
+  right: 16px;
+  width: 320px;
+  max-height: 70vh;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(60,64,67,0.24);
+  z-index: 20;
+  overflow: hidden;
+  display: none;
+}
+
+#gsd-overlay .gsd-chats-panel { right: 128px; }
+#gsd-overlay .gsd-model-panel { right: 16px; }
+
+#gsd-overlay .gsd-panel.open { display: flex; flex-direction: column; }
+
+#gsd-overlay .gsd-panel-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f1f3f4;
+  flex-shrink: 0;
+}
+
+#gsd-overlay .gsd-panel-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #5f6368;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+#gsd-overlay .gsd-panel-body {
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+#gsd-overlay .gsd-panel-item {
+  padding: 10px 16px;
+  font-size: 14px;
+  color: #202124;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: inherit;
+}
+
+#gsd-overlay .gsd-panel-item:hover { background: #f1f3f4; }
+
+#gsd-overlay .gsd-panel-empty {
+  padding: 24px 16px;
+  font-size: 13px;
+  color: #9aa0a6;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ========================================
+   WORKSPACE + PAGE
+   ======================================== */
+
+#gsd-overlay .gsd-workspace {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 32px 0 64px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  background: #f9fbfd;
+}
+
+#gsd-overlay .gsd-page {
+  width: 816px;
+  min-width: 816px;
+  min-height: 1056px;
+  /*
+   * Multi-page look. Background is stacked (layers paint top → bottom in the
+   * listed order — first layer is frontmost):
+   *   1. Horizontal 1px gray rules at top and bottom of each page body
+   *   2. Page fill: white page body + workspace-gray 20px gap, repeating
+   * Vertical borders are added by ::before below so they can be clipped out
+   * of the 20px gap using a mask.
+   */
+  background-image:
+    linear-gradient(
+      to bottom,
+      #dadce0 0,
+      #dadce0 1px,
+      transparent 1px,
+      transparent 1055px,
+      #dadce0 1055px,
+      #dadce0 1056px,
+      transparent 1056px,
+      transparent 1076px
+    ),
+    linear-gradient(
+      to bottom,
+      #fff 0,
+      #fff 1056px,
+      #f9fbfd 1056px,
+      #f9fbfd 1076px
+    );
+  background-repeat: repeat-y, repeat-y;
+  background-size: 100% 1076px, 100% 1076px;
+  background-position: 0 0, 0 0;
+  padding: 96px 96px 96px 96px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  isolation: isolate;
+}
+
+/*
+ * Vertical page borders. Painted as a 1px wide column on each side, and
+ * masked out in the 20px gap zones so the "between pages" strip reads as
+ * pure workspace gray, identical to the scroll area outside the page.
+ */
+#gsd-overlay .gsd-page::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(to bottom, #dadce0, #dadce0),
+    linear-gradient(to bottom, #dadce0, #dadce0);
+  background-position: left, right;
+  background-size: 1px 100%, 1px 100%;
+  background-repeat: no-repeat, no-repeat;
+  mask: repeating-linear-gradient(
+    to bottom,
+    #000 0,
+    #000 1056px,
+    transparent 1056px,
+    transparent 1076px
+  );
+  -webkit-mask: repeating-linear-gradient(
+    to bottom,
+    #000 0,
+    #000 1056px,
+    transparent 1056px,
+    transparent 1076px
+  );
+}
+
+/*
+ * Safety overlay: in the rare case the JS paginator misses a block (e.g. a
+ * very tall paragraph), this mask hides any content that happens to fall in
+ * the 20px workspace gap so text never appears on the gray band.
+ */
+#gsd-overlay .gsd-page::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 1056px,
+    #f9fbfd 1056px,
+    #f9fbfd 1076px
+  );
+}
+
+#gsd-overlay .gsd-page > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ========================================
+   MESSAGES (plain Times New Roman 12pt paragraphs)
+   ======================================== */
+
+#gsd-overlay .gsd-messages {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  color: #202124;
+  line-height: 1.5;
+}
+
+#gsd-overlay .gsd-empty {
+  color: #bdc1c6;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  font-style: italic;
+}
+
+#gsd-overlay .gsd-msg {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  text-align: left;
+  margin: 0 0 12pt 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+#gsd-overlay .gsd-msg-user { color: #9aa0a6; }
+#gsd-overlay .gsd-msg-model { color: #202124; }
+
+/* Everything EXCEPT preserved-math elements gets forced to Times New Roman 12pt. */
+#gsd-overlay .gsd-msg *:not([data-gsd-math]) {
+  font-family: "Times New Roman", Times, serif !important;
+  font-size: 12pt !important;
+  line-height: 1.5 !important;
+  color: inherit !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+  text-align: left !important;
+}
+
+#gsd-overlay .gsd-msg p:not([data-gsd-math]),
+#gsd-overlay .gsd-msg li:not([data-gsd-math]),
+#gsd-overlay .gsd-msg h1:not([data-gsd-math]),
+#gsd-overlay .gsd-msg h2:not([data-gsd-math]),
+#gsd-overlay .gsd-msg h3:not([data-gsd-math]),
+#gsd-overlay .gsd-msg h4:not([data-gsd-math]),
+#gsd-overlay .gsd-msg h5:not([data-gsd-math]),
+#gsd-overlay .gsd-msg h6:not([data-gsd-math]),
+#gsd-overlay .gsd-msg pre:not([data-gsd-math]),
+#gsd-overlay .gsd-msg ul:not([data-gsd-math]),
+#gsd-overlay .gsd-msg ol:not([data-gsd-math]) {
+  margin-bottom: 12pt !important;
+}
+
+#gsd-overlay .gsd-msg ul:not([data-gsd-math]),
+#gsd-overlay .gsd-msg ol:not([data-gsd-math]) {
+  padding-left: 36px !important;
+}
+
+/* Preserved math fallback: inherit only color; let Gemini's styling survive for rendering. */
+#gsd-overlay .gsd-msg [data-gsd-math] {
+  color: inherit;
+}
+
+#gsd-overlay .gsd-error {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 11pt;
+  color: #b00020;
+  font-style: italic;
+  margin: 8px 0;
+}
+
+/* ========================================
+   INPUT
+   ======================================== */
+
+#gsd-overlay .gsd-input-row {
+  position: relative;
+  margin-top: 24px;
+  padding-top: 14px;
+}
+
+#gsd-overlay .gsd-input {
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #202124;
+  outline: none;
+  border: none;
+  min-height: 24px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  caret-color: #202124;
+}
+
+#gsd-overlay .gsd-input:empty::before {
+  content: attr(data-placeholder);
+  color: #bdc1c6;
+  font-style: italic;
   pointer-events: none;
 }
-.gsd-tb-zoom { width: 52px; }
-.gsd-tb-style { width: 88px; }
-.gsd-tb-font { width: 80px; }
 
-.gsd-tb-fontsize {
-  width: 28px;
-  height: 22px;
-  border: 1px solid #c4c7c5;
-  border-radius: 3px;
-  text-align: center;
-  font-size: 11px;
-  background: transparent;
-  color: #202124;
-  margin: 0 1px;
+#gsd-overlay .gsd-sending {
+  position: absolute;
+  top: 14px;
+  right: 0;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 10pt;
+  color: #9aa0a6;
+  font-style: italic;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
 }
-.gsd-tb-size-btn { width: 22px; height: 22px; font-size: 16px; }
+#gsd-overlay .gsd-sending.visible { opacity: 1; }
 
+/* ========================================
+   SCROLLBAR inside workspace
+   ======================================== */
 
-/* ============================================
-   NUCLEAR RESET: Force everything light
-   ============================================
-   Instead of targeting specific Gemini classes
-   (which are obfuscated), we force ALL elements
-   to light backgrounds and dark text.
-   Our own .gsd-* elements are excluded where needed. */
-
-html.gsd-stealth,
-html.gsd-stealth body {
-  background: #fff !important;
-  color: #202124 !important;
+#gsd-overlay .gsd-workspace::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
 }
-
-/* Push body content below our fixed header+toolbar (48+36+2 = 86px) */
-html.gsd-stealth body {
-  padding-top: 86px !important;
-}
-
-/* Force every element's background to white/transparent */
-html.gsd-stealth body *:not([class*="gsd-"]):not(code):not(pre) {
-  background-color: transparent !important;
-  background-image: none !important;
-  color: #202124 !important;
-  border-color: transparent !important;
-  box-shadow: none !important;
-  text-shadow: none !important;
-}
-
-/* ============================================
-   HIDE GEMINI BRANDING & CHROME
-   ============================================ */
-
-/* Gemini's own header/banner */
-html.gsd-stealth header:not(.gsd-header),
-html.gsd-stealth [role="banner"]:not([class*="gsd-"]) {
-  display: none !important;
-}
-
-/* Landing page hero text, suggestion chips, capability buttons */
-html.gsd-stealth [class*="chip"],
-html.gsd-stealth [class*="suggestion"],
-html.gsd-stealth [class*="capability"],
-html.gsd-stealth [class*="Chip"],
-html.gsd-stealth [class*="Suggestion"] {
-  display: none !important;
-}
-
-/* "Where should we start?" and similar hero/greeting text */
-html.gsd-stealth [class*="greeting"],
-html.gsd-stealth [class*="hero"],
-html.gsd-stealth [class*="welcome"],
-html.gsd-stealth [class*="landing"],
-html.gsd-stealth [class*="home-screen"],
-html.gsd-stealth [class*="starter"] {
-  display: none !important;
-}
-
-/* Hide Gemini sparkle/logo/branding imagery */
-html.gsd-stealth img[src*="gemini"],
-html.gsd-stealth img[src*="bard"],
-html.gsd-stealth img[src*="sparkle"],
-html.gsd-stealth img[alt*="Gemini"],
-html.gsd-stealth [class*="sparkle"],
-html.gsd-stealth [class*="logo"]:not(.gsd-logo) {
-  display: none !important;
-}
-
-/* "Upgrade" button */
-html.gsd-stealth [class*="upgrade" i],
-html.gsd-stealth [class*="Upgrade"],
-html.gsd-stealth a[href*="upgrade"],
-html.gsd-stealth a[href*="premium"] {
-  display: none !important;
-}
-
-/* Model picker dropdown */
-html.gsd-stealth [class*="model-picker"],
-html.gsd-stealth [class*="model_picker"],
-html.gsd-stealth [class*="ModelPicker"] {
-  display: none !important;
-}
-
-/* "Gemini is AI and can make mistakes" disclaimer */
-html.gsd-stealth [class*="disclaimer" i],
-html.gsd-stealth [class*="safety" i] {
-  display: none !important;
-}
-
-/* In-chat avatar icons for user/model */
-html.gsd-stealth [class*="avatar"]:not(.gsd-avatar),
-html.gsd-stealth [class*="user-image"],
-html.gsd-stealth [class*="profile-icon"],
-html.gsd-stealth [class*="turn-icon"],
-html.gsd-stealth [class*="author-icon"] {
-  display: none !important;
-}
-
-/* Action buttons below responses (copy, share, thumbs up/down, etc.) */
-html.gsd-stealth [class*="action-bar"],
-html.gsd-stealth [class*="action-wrapper"],
-html.gsd-stealth [class*="feedback"],
-html.gsd-stealth [class*="copy-button"],
-html.gsd-stealth [class*="share-button"]:not(.gsd-share-btn) {
-  display: none !important;
-}
-
-/* ============================================
-   SIDEBAR — slim document outline panel
-   ============================================ */
-
-html.gsd-stealth nav,
-html.gsd-stealth [role="navigation"],
-html.gsd-stealth aside {
-  background-color: #f8f9fa !important;
-  border-right: 1px solid #dadce0 !important;
-  margin-top: 86px !important;
-}
-
-html.gsd-stealth nav a,
-html.gsd-stealth [role="navigation"] a,
-html.gsd-stealth aside a {
-  color: #202124 !important;
-  font-size: 13px !important;
-}
-
-html.gsd-stealth nav a:hover,
-html.gsd-stealth [role="navigation"] a:hover,
-html.gsd-stealth aside a:hover {
-  background-color: #e8eaed !important;
-}
-
-/* ============================================
-   MAIN CONTENT AREA — the "document"
-   ============================================ */
-
-html.gsd-stealth main,
-html.gsd-stealth [role="main"] {
-  background: #fff !important;
-}
-
-/* ============================================
-   CHAT MESSAGES — look like typed paragraphs
-   ============================================ */
-
-html.gsd-stealth p,
-html.gsd-stealth li,
-html.gsd-stealth span:not([class*="gsd-"]),
-html.gsd-stealth div:not([class*="gsd-"]) {
-  color: #202124 !important;
-}
-
-html.gsd-stealth p {
-  font-size: 14px !important;
-  line-height: 1.65 !important;
-  margin: 0 0 10px !important;
-}
-
-html.gsd-stealth h1 { font-size: 20px !important; color: #202124 !important; }
-html.gsd-stealth h2 { font-size: 16px !important; color: #202124 !important; }
-html.gsd-stealth h3 { font-size: 14px !important; color: #202124 !important; font-weight: 600 !important; }
-
-html.gsd-stealth li {
-  font-size: 14px !important;
-  line-height: 1.65 !important;
-}
-
-/* Code blocks — subtle */
-html.gsd-stealth pre,
-html.gsd-stealth code {
-  background-color: #f8f9fa !important;
-  border: 1px solid #e0e0e0 !important;
-  border-radius: 2px !important;
-  color: #37474f !important;
-  font-family: "Roboto Mono", "Consolas", monospace !important;
-  font-size: 12px !important;
-}
-
-html.gsd-stealth pre {
-  padding: 12px 16px !important;
-  margin: 8px 0 !important;
-  overflow-x: auto !important;
-}
-
-/* ============================================
-   INPUT AREA — typing in the document
-   ============================================ */
-
-/* The actual text input / contenteditable */
-html.gsd-stealth textarea,
-html.gsd-stealth [contenteditable="true"]:not(.gsd-doc-title),
-html.gsd-stealth [role="textbox"],
-html.gsd-stealth rich-textarea,
-html.gsd-stealth [class*="ql-editor"] {
-  background-color: #fff !important;
-  border: none !important;
-  border-top: 1px solid #dadce0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  color: #202124 !important;
-  font-size: 14px !important;
-  font-family: "Google Sans", "Roboto", Arial, sans-serif !important;
-  caret-color: #202124 !important;
-}
-
-html.gsd-stealth textarea:focus,
-html.gsd-stealth [contenteditable="true"]:not(.gsd-doc-title):focus,
-html.gsd-stealth [role="textbox"]:focus {
-  outline: none !important;
-  border-top-color: #1a73e8 !important;
-}
-
-/* Send button — subtle */
-html.gsd-stealth [aria-label*="end" i] svg,
-html.gsd-stealth [aria-label*="submit" i] svg,
-html.gsd-stealth [data-test-id*="send"] svg {
-  fill: #1a73e8 !important;
-  filter: none !important;
-  opacity: 1 !important;
-}
-
-/* ============================================
-   SVG / ICON CLEANUP
-   ============================================ */
-
-/* Mute all Gemini SVGs, but keep ours sharp */
-html.gsd-stealth svg:not([class*="gsd-"]) {
-  filter: grayscale(100%) !important;
-  opacity: 0.5 !important;
-}
-
-html.gsd-stealth .gsd-bar svg,
-html.gsd-stealth .gsd-header svg,
-html.gsd-stealth .gsd-toolbar svg {
-  filter: none !important;
-  opacity: 1 !important;
-}
-
-/* ============================================
-   SCROLLBAR
-   ============================================ */
-
-html.gsd-stealth ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-html.gsd-stealth ::-webkit-scrollbar-track { background: transparent; }
-html.gsd-stealth ::-webkit-scrollbar-thumb {
+#gsd-overlay .gsd-workspace::-webkit-scrollbar-track { background: #f9fbfd; }
+#gsd-overlay .gsd-workspace::-webkit-scrollbar-thumb {
   background: #bdc1c6;
+  border: 3px solid #f9fbfd;
+  border-radius: 7px;
+}
+#gsd-overlay .gsd-workspace::-webkit-scrollbar-thumb:hover { background: #9aa0a6; }
+
+/* Panel body scrollbar */
+#gsd-overlay .gsd-panel-body::-webkit-scrollbar { width: 8px; }
+#gsd-overlay .gsd-panel-body::-webkit-scrollbar-track { background: transparent; }
+#gsd-overlay .gsd-panel-body::-webkit-scrollbar-thumb {
+  background: #dadce0;
   border-radius: 4px;
 }
-html.gsd-stealth ::-webkit-scrollbar-thumb:hover { background: #9aa0a6; }
 
-/* ============================================
-   MISC FIXES
-   ============================================ */
-
-/* Don't let any random border show */
-html.gsd-stealth [class*="divider"],
-html.gsd-stealth [class*="separator"],
-html.gsd-stealth hr {
-  border-color: #e0e0e0 !important;
-  background-color: #e0e0e0 !important;
-}
-
-/* Links — blue like in a doc */
-html.gsd-stealth a:not([class*="gsd-"]) {
-  color: #1a73e8 !important;
-}
-
-/* Modals/tooltips */
-html.gsd-stealth [role="dialog"],
-html.gsd-stealth [role="tooltip"] {
-  background-color: #fff !important;
-  border: 1px solid #dadce0 !important;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15) !important;
-  border-radius: 4px !important;
-}
-
-/* Tables — doc-style */
-html.gsd-stealth table {
-  border-collapse: collapse !important;
-}
-html.gsd-stealth th,
-html.gsd-stealth td {
-  border: 1px solid #dadce0 !important;
-  padding: 6px 12px !important;
-  font-size: 13px !important;
-}
-html.gsd-stealth th {
-  background-color: #f8f9fa !important;
-  font-weight: 600 !important;
-}

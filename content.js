@@ -1,126 +1,957 @@
 (function () {
   const STEALTH_CLASS = "gsd-stealth";
   let active = false;
-  let headerEl = null;
-  let toolbarEl = null;
-  let originalTitle = "";
+  let shortcutEnabled = true;
+  let overlay = null;
+  let messagesEl = null;
+  let inputEl = null;
+  let titleEl = null;
+  let modelLabelEl = null;
+  let tempLabelEl = null;
+  let syncInterval = null;
+  let lastHash = "";
+  let lastUrl = "";
 
-  function buildHeader() {
-    const el = document.createElement("div");
-    el.className = "gsd-bar gsd-header";
-    el.innerHTML = `
-      <div class="gsd-header-left">
-        <svg class="gsd-logo" viewBox="0 0 24 24" width="28" height="28">
-          <path fill="#4285F4" d="M6 2a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6H6z"/>
-          <path fill="#A1C2FA" d="M14 2l6 6h-4a2 2 0 01-2-2V2z"/>
-          <path fill="#fff" d="M7 13h10v1.5H7zm0 3h7v1.5H7z"/>
-        </svg>
-        <div class="gsd-title-block">
-          <span class="gsd-doc-title" contenteditable="true" spellcheck="false">Untitled document</span>
-          <div class="gsd-menu-row">
-            <span class="gsd-menu-item">File</span>
-            <span class="gsd-menu-item">Edit</span>
-            <span class="gsd-menu-item">View</span>
-            <span class="gsd-menu-item">Insert</span>
-            <span class="gsd-menu-item">Format</span>
-            <span class="gsd-menu-item">Tools</span>
-            <span class="gsd-menu-item">Extensions</span>
-            <span class="gsd-menu-item">Help</span>
+  function hasExtensionContext() {
+    return !!(typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id);
+  }
+
+  function safeStorageSet(value) {
+    if (!hasExtensionContext()) return;
+    try {
+      chrome.storage.local.set(value);
+    } catch (_e) {
+      // Ignore when extension context is invalidated after reload/update.
+    }
+  }
+
+  function safeStorageGet(keys, cb) {
+    if (!hasExtensionContext()) return;
+    try {
+      chrome.storage.local.get(keys, cb);
+    } catch (_e) {
+      // Ignore when extension context is invalidated after reload/update.
+    }
+  }
+
+  /* ====== Overlay construction ====== */
+
+  function buildOverlay() {
+    overlay = document.createElement("div");
+    overlay.id = "gsd-overlay";
+    overlay.className = "gsd-overlay";
+    overlay.innerHTML = `
+      <div class="gsd-header">
+        <div class="gsd-header-left">
+          <svg class="gsd-logo" viewBox="0 0 24 24" width="32" height="32" aria-hidden="true">
+            <path fill="#1a73e8" d="M6 2.5h8l4 4v14A1.5 1.5 0 0 1 16.5 22h-10A1.5 1.5 0 0 1 5 20.5V4A1.5 1.5 0 0 1 6.5 2.5z"/>
+            <path fill="#8ab4f8" d="M14 2.5v3A1.5 1.5 0 0 0 15.5 7h3z"/>
+            <path fill="#fff" d="M8 10h8v1.2H8zm0 2.6h8v1.2H8zm0 2.6h5.6v1.2H8z"/>
+            <path fill="#34a853" d="M15.9 16.3l2.3 2.3-3.7 1.4 1.4-3.7z"/>
+          </svg>
+          <div class="gsd-doc-title" title="Current chat">Loading…</div>
+        </div>
+
+        <div class="gsd-header-right">
+          <button class="gsd-btn gsd-btn-new" title="New chat">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="#444">
+              <path d="M12 4v16m-8-8h16" stroke="#444" stroke-width="2" stroke-linecap="round" fill="none"/>
+            </svg>
+            <span>New</span>
+          </button>
+          <button class="gsd-btn gsd-btn-chats" title="Browse chats">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="#444">
+              <path d="M12 3a9 9 0 00-9 9h2a7 7 0 117 7v2a9 9 0 000-18z"/>
+              <path d="M11 8v5l4 2 .8-1.3-3.3-2V8z"/>
+            </svg>
+            <span>Chats</span>
+          </button>
+          <button class="gsd-btn gsd-btn-model" title="Change model">
+            <span class="gsd-model-label">Model</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="#444">
+              <path d="M7 10l5 5 5-5z"/>
+            </svg>
+          </button>
+          <button class="gsd-btn gsd-btn-temp" title="Toggle temporary chat">
+            <span class="gsd-temp-label">Temporary: Off</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="gsd-panel gsd-chats-panel" role="listbox" aria-label="Chats">
+        <div class="gsd-panel-head">
+          <div class="gsd-panel-title">Recent chats</div>
+        </div>
+        <div class="gsd-panel-body gsd-chats-list"></div>
+      </div>
+
+      <div class="gsd-panel gsd-model-panel" role="listbox" aria-label="Models">
+        <div class="gsd-panel-head">
+          <div class="gsd-panel-title">Choose a model</div>
+        </div>
+        <div class="gsd-panel-body gsd-model-list"></div>
+      </div>
+
+      <div class="gsd-workspace">
+        <div class="gsd-page">
+          <div class="gsd-messages"></div>
+          <div class="gsd-input-row">
+            <div class="gsd-input"
+                 contenteditable="true"
+                 spellcheck="true"
+                 data-placeholder="Type here and press Enter to send..."></div>
+            <div class="gsd-sending" aria-hidden="true">Sending…</div>
           </div>
         </div>
       </div>
-      <div class="gsd-header-right">
-        <div class="gsd-header-icon" title="Last edit was seconds ago">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="#5f6368"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.1.8-1.3-4.5-2.7V7z"/></svg>
-        </div>
-        <div class="gsd-header-icon" title="Comments">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="#5f6368"><path d="M21.99 4c0-1.1-.89-2-1.99-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4-.01-18zM18 14H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>
-        </div>
-        <div class="gsd-header-icon" title="Video call">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="#5f6368"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>
-        </div>
-        <button class="gsd-share-btn">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="#fff" style="margin-right:6px"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
-          Share
-        </button>
-        <div class="gsd-avatar"></div>
-      </div>`;
-    return el;
+    `;
+    document.documentElement.appendChild(overlay);
+    messagesEl = overlay.querySelector(".gsd-messages");
+    inputEl = overlay.querySelector(".gsd-input");
+    titleEl = overlay.querySelector(".gsd-doc-title");
+    modelLabelEl = overlay.querySelector(".gsd-model-label");
+    tempLabelEl = overlay.querySelector(".gsd-temp-label");
+
+    wireInput();
+    wireHeaderButtons();
   }
 
-  function buildToolbar() {
-    const el = document.createElement("div");
-    el.className = "gsd-bar gsd-toolbar";
-    el.innerHTML = `
-      <div class="gsd-tb-group">
-        <button class="gsd-tb-btn" title="Undo"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.6-3.6A8 8 0 0120.4 16l2.1-.8A10.5 10.5 0 0012.5 8z"/></svg></button>
-        <button class="gsd-tb-btn" title="Redo"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M18.4 10.6C16.55 9 14.15 8 11.5 8A10.5 10.5 0 001.5 15.2l2.1.8a8 8 0 0112-3.6L12 16h9V7l-3.6 3.6z"/></svg></button>
-        <button class="gsd-tb-btn" title="Print"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z"/></svg></button>
-        <button class="gsd-tb-btn" title="Spell check"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M12.45 16h2.09L9.43 3H7.57L2.46 16h2.09l1.12-3h5.64l1.14 3zm-6.02-5L8.5 5.48 10.57 11H6.43zm15.16.59l-8.09 8.09L9.83 16l-1.41 1.41 5.09 5.09L23 13l-1.41-1.41z"/></svg></button>
-      </div>
-      <div class="gsd-tb-sep"></div>
-      <div class="gsd-tb-group">
-        <select class="gsd-tb-select gsd-tb-zoom"><option>100%</option></select>
-      </div>
-      <div class="gsd-tb-sep"></div>
-      <div class="gsd-tb-group">
-        <select class="gsd-tb-select gsd-tb-style"><option>Normal text</option></select>
-      </div>
-      <div class="gsd-tb-sep"></div>
-      <div class="gsd-tb-group">
-        <select class="gsd-tb-select gsd-tb-font"><option>Arial</option></select>
-      </div>
-      <div class="gsd-tb-sep"></div>
-      <div class="gsd-tb-group">
-        <button class="gsd-tb-btn gsd-tb-size-btn">−</button>
-        <input class="gsd-tb-fontsize" value="11" readonly>
-        <button class="gsd-tb-btn gsd-tb-size-btn">+</button>
-      </div>
-      <div class="gsd-tb-sep"></div>
-      <div class="gsd-tb-group">
-        <button class="gsd-tb-btn gsd-tb-fmt" title="Bold"><b>B</b></button>
-        <button class="gsd-tb-btn gsd-tb-fmt" title="Italic"><i>I</i></button>
-        <button class="gsd-tb-btn gsd-tb-fmt" title="Underline"><u>U</u></button>
-        <button class="gsd-tb-btn gsd-tb-fmt" title="Text color"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="#444" d="M11 3L5.5 17h2.25l1.12-3h6.25l1.12 3h2.25L13 3h-2zm-1.38 9L12 5.67 14.38 12H9.62z"/><rect y="19" width="24" height="4" rx="0" fill="#000"/></svg></button>
-        <button class="gsd-tb-btn gsd-tb-fmt" title="Highlight color"><svg viewBox="0 0 24 24" width="16" height="16"><path fill="#444" d="M2 20h20v4H2zm3.49-3.49l1.42-1.42L4.92 13.1l7.07-7.07 1.98 1.98L5.49 16.51zM15.07 2.93l3.01 3.01c.39.39.39 1.02 0 1.41l-9.19 9.19-4.43-4.43 9.19-9.19a1 1 0 011.42.01z"/><rect y="21" width="24" height="3" rx="0" fill="#FBBC04"/></svg></button>
-      </div>
-      <div class="gsd-tb-sep"></div>
-      <div class="gsd-tb-group">
-        <button class="gsd-tb-btn" title="Insert link"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg></button>
-        <button class="gsd-tb-btn" title="Add comment"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg></button>
-        <button class="gsd-tb-btn" title="Insert image"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></button>
-      </div>
-      <div class="gsd-tb-sep"></div>
-      <div class="gsd-tb-group">
-        <button class="gsd-tb-btn" title="Align left"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M15 15H3v2h12v-2zm0-8H3v2h12V7zM3 13h18v-2H3v2zm0 8h18v-2H3v2zM3 3v2h18V3H3z"/></svg></button>
-        <button class="gsd-tb-btn" title="Line spacing"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M6 7h2.5L5 3.5 1.5 7H4v10H1.5L5 20.5 8.5 17H6V7zm4-2v2h12V5H10zm0 14h12v-2H10v2zm0-6h12v-2H10v2z"/></svg></button>
-        <button class="gsd-tb-btn" title="Checklist"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M22 7h-9v2h9V7zm0 4h-9v2h9v-2zm0 4h-9v2h9v-2zM5.54 11L2 7.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 11zm0 8L2 15.46l1.41-1.41 2.12 2.12 4.24-4.24 1.41 1.41L5.54 19z"/></svg></button>
-        <button class="gsd-tb-btn" title="Bulleted list"><svg viewBox="0 0 24 24" width="16" height="16" fill="#444"><path d="M4 10.5c-.83 0-1.5.67-1.5 1.5s.67 1.5 1.5 1.5 1.5-.67 1.5-1.5-.67-1.5-1.5-1.5zm0-6c-.83 0-1.5.67-1.5 1.5S3.17 7.5 4 7.5 5.5 6.83 5.5 6 4.83 4.5 4 4.5zm0 12c-.83 0-1.5.68-1.5 1.5s.68 1.5 1.5 1.5 1.5-.68 1.5-1.5-.67-1.5-1.5-1.5zM7 19h14v-2H7v2zm0-6h14v-2H7v2zm0-8v2h14V5H7z"/></svg></button>
-      </div>`;
-    return el;
+  function wireHeaderButtons() {
+    overlay.querySelector(".gsd-btn-new").addEventListener("click", () => {
+      closePanels();
+      triggerNewChat();
+    });
+    overlay.querySelector(".gsd-btn-chats").addEventListener("click", (e) => {
+      e.stopPropagation();
+      togglePanel("gsd-chats-panel", openChatsPanel);
+    });
+    overlay.querySelector(".gsd-btn-model").addEventListener("click", (e) => {
+      e.stopPropagation();
+      togglePanel("gsd-model-panel", openModelPanel);
+    });
+    overlay.querySelector(".gsd-btn-temp").addEventListener("click", async () => {
+      closePanels();
+      const ok = await toggleTemporaryChat();
+      if (!ok) {
+        appendEphemeralError("Couldn't find Gemini's temporary chat toggle.");
+      }
+      syncTemporaryLabel();
+    });
+
+    // Clicking outside closes panels
+    overlay.addEventListener("click", (e) => {
+      if (!e.target.closest(".gsd-panel") && !e.target.closest(".gsd-btn")) {
+        closePanels();
+      }
+    });
   }
+
+  function togglePanel(panelClass, opener) {
+    const panel = overlay.querySelector("." + panelClass);
+    if (panel.classList.contains("open")) {
+      panel.classList.remove("open");
+    } else {
+      closePanels();
+      panel.classList.add("open");
+      opener();
+    }
+  }
+
+  function closePanels() {
+    overlay.querySelectorAll(".gsd-panel.open").forEach((p) => p.classList.remove("open"));
+  }
+
+  /* ====== Input wiring (send to Gemini) ====== */
+
+  function wireInput() {
+    inputEl.addEventListener("keydown", async (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const text = inputEl.innerText.replace(/\u00A0/g, " ").trim();
+        if (!text) return;
+        inputEl.innerText = "";
+        showSending(true);
+        const ok = await sendToGemini(text);
+        showSending(false);
+        if (!ok) {
+          appendEphemeralError("Couldn't find Gemini's input. Try refreshing the page.");
+        }
+      }
+    });
+  }
+
+  function showSending(v) {
+    overlay?.querySelector(".gsd-sending")?.classList.toggle("visible", v);
+  }
+
+  function appendEphemeralError(text) {
+    const e = document.createElement("div");
+    e.className = "gsd-error";
+    e.textContent = text;
+    messagesEl.appendChild(e);
+    setTimeout(() => e.remove(), 4000);
+  }
+
+  function findRealInput() {
+    return (
+      document.querySelector('rich-textarea .ql-editor[contenteditable="true"]') ||
+      document.querySelector('.ql-editor[contenteditable="true"]') ||
+      document.querySelector('div[role="textbox"][contenteditable="true"]') ||
+      document.querySelector("textarea")
+    );
+  }
+
+  function findSendButton() {
+    const buttons = document.querySelectorAll("button");
+    for (const btn of buttons) {
+      if (btn.disabled) continue;
+      const label = (btn.getAttribute("aria-label") || "").toLowerCase();
+      if (
+        label.includes("send message") ||
+        label.includes("submit") ||
+        label.includes("send prompt") ||
+        (label.includes("send") && !label.includes("feedback"))
+      ) {
+        return btn;
+      }
+    }
+    return null;
+  }
+
+  async function sendToGemini(text) {
+    const real = findRealInput();
+    if (!real) return false;
+
+    real.focus();
+
+    if (real.tagName === "TEXTAREA") {
+      real.value = text;
+      real.dispatchEvent(new Event("input", { bubbles: true }));
+    } else {
+      const sel = window.getSelection();
+      const range = document.createRange();
+      range.selectNodeContents(real);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      document.execCommand("delete", false);
+      document.execCommand("insertText", false, text);
+      real.dispatchEvent(new InputEvent("input", { bubbles: true, data: text }));
+    }
+
+    for (let i = 0; i < 20; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      const btn = findSendButton();
+      if (btn && !btn.disabled) {
+        btn.click();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /* ====== New chat ====== */
+
+  function findNewChatButton() {
+    const candidates = document.querySelectorAll(
+      'button, a, [role="button"]'
+    );
+    for (const el of candidates) {
+      const label = (
+        (el.getAttribute("aria-label") || "") +
+        " " +
+        (el.getAttribute("data-test-id") || "") +
+        " " +
+        (el.textContent || "")
+      ).toLowerCase();
+      if (
+        (label.includes("new chat") ||
+          label.includes("new conversation") ||
+          label.includes("start new chat")) &&
+        !label.includes("history")
+      ) {
+        return el;
+      }
+    }
+    return null;
+  }
+
+  function triggerNewChat() {
+    const btn = findNewChatButton();
+    if (btn) btn.click();
+  }
+
+  /* ====== Chat history browser ====== */
+
+  function readChats() {
+    const seen = new Set();
+    const chats = [];
+
+    const candidates = document.querySelectorAll(
+      "conversations-list [role='button'], conversations-list a, conversations-list button, [data-test-id='conversation'], a[href*='/app/c_']"
+    );
+
+    candidates.forEach((el) => {
+      // Skip items nested inside another candidate
+      if (el.closest && Array.from(candidates).some((p) => p !== el && p.contains(el))) return;
+      const text = (el.textContent || "").trim().replace(/\s+/g, " ");
+      if (!text || text.length > 120) return;
+      const key = text.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      chats.push({ text, el });
+    });
+
+    return chats;
+  }
+
+  function openChatsPanel() {
+    const list = overlay.querySelector(".gsd-chats-list");
+    list.innerHTML = "";
+    const chats = readChats();
+    if (chats.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "gsd-panel-empty";
+      empty.textContent = "No recent chats found. Open the Gemini sidebar once, then try again.";
+      list.appendChild(empty);
+      return;
+    }
+
+    chats.forEach((chat) => {
+      const item = document.createElement("div");
+      item.className = "gsd-panel-item";
+      item.textContent = chat.text;
+      item.addEventListener("click", () => {
+        closePanels();
+        chat.el.click();
+      });
+      list.appendChild(item);
+    });
+  }
+
+  /* ====== Model picker ====== */
+
+  function findModelButton() {
+    const candidates = document.querySelectorAll(
+      'button, [role="button"]'
+    );
+    for (const el of candidates) {
+      const label = (
+        (el.getAttribute("aria-label") || "") +
+        " " +
+        (el.getAttribute("data-test-id") || "")
+      ).toLowerCase();
+      if (
+        label.includes("model") ||
+        label.includes("mode switcher") ||
+        label.includes("bard-mode")
+      ) {
+        return el;
+      }
+    }
+    // Fallback — bard-mode-switcher custom element
+    const m = document.querySelector("bard-mode-switcher button");
+    if (m) return m;
+    return null;
+  }
+
+  function readCurrentModelName() {
+    const btn = findModelButton();
+    if (!btn) return null;
+    const text = (btn.textContent || "").trim().replace(/\s+/g, " ");
+    return text || null;
+  }
+
+  async function openModelPanel() {
+    const list = overlay.querySelector(".gsd-model-list");
+    list.innerHTML = "<div class='gsd-panel-empty'>Loading models…</div>";
+
+    const btn = findModelButton();
+    if (!btn) {
+      list.innerHTML = "<div class='gsd-panel-empty'>Model picker not available.</div>";
+      return;
+    }
+
+    // Open Gemini's menu (invisible behind our overlay) and scrape options.
+    btn.click();
+    await new Promise((r) => setTimeout(r, 250));
+
+    const menuItems = document.querySelectorAll(
+      ".cdk-overlay-container [role='menuitem'], .cdk-overlay-container [role='menuitemradio'], button[mat-menu-item], .mat-mdc-menu-item"
+    );
+
+    const options = [];
+    const seen = new Set();
+    menuItems.forEach((item) => {
+      const raw = (item.innerText || item.textContent || "").trim();
+      const lines = raw
+        .split("\n")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      const display =
+        lines.length > 1
+          ? `${lines[0]} - ${lines.slice(1).join(" ")}`
+          : raw.replace(/\s+/g, " ");
+      const text = raw.replace(/\s+/g, " ");
+      if (!text || text.length > 120 || seen.has(text)) return;
+      seen.add(text);
+      options.push({ text, display, el: item });
+    });
+
+    if (options.length === 0) {
+      list.innerHTML = "<div class='gsd-panel-empty'>No models found.</div>";
+      // Close Gemini's menu
+      document.body.click();
+      return;
+    }
+
+    list.innerHTML = "";
+    options.forEach((opt) => {
+      const item = document.createElement("div");
+      item.className = "gsd-panel-item";
+      item.textContent = opt.display || opt.text;
+      item.addEventListener("click", () => {
+        closePanels();
+        // Re-click Gemini's button to open menu again, then click matching option
+        const btn2 = findModelButton();
+        if (!btn2) return;
+        btn2.click();
+        setTimeout(() => {
+          const items2 = document.querySelectorAll(
+            ".cdk-overlay-container [role='menuitem'], .cdk-overlay-container [role='menuitemradio'], button[mat-menu-item], .mat-mdc-menu-item"
+          );
+          for (const it of items2) {
+            const t = (it.textContent || "").trim().replace(/\s+/g, " ");
+            if (t === opt.text) {
+              it.click();
+              return;
+            }
+          }
+        }, 150);
+      });
+      list.appendChild(item);
+    });
+
+    // Close Gemini's menu now that we've scraped it (click outside).
+    setTimeout(() => {
+      const backdrop = document.querySelector(".cdk-overlay-backdrop");
+      if (backdrop) backdrop.click();
+      else document.body.click();
+    }, 50);
+  }
+
+  /* ====== Temporary chat ====== */
+
+  /**
+   * Strictly match only controls that are provably the "temporary chat" toggle.
+   * We match on aria-label / data-test-id content, never on class names or
+   * textContent, because Gemini reuses those words casually.
+   */
+  function matchesTemporaryChat(el) {
+    const aria = (el.getAttribute?.("aria-label") || "").toLowerCase();
+    const testId = (el.getAttribute?.("data-test-id") || "").toLowerCase();
+    if (
+      aria === "temporary chat" ||
+      aria.startsWith("turn on temporary chat") ||
+      aria.startsWith("turn off temporary chat") ||
+      aria.includes("temporary chat")
+    ) {
+      return true;
+    }
+    if (testId.includes("temporary-chat") || testId.includes("temp-chat")) {
+      return true;
+    }
+    return false;
+  }
+
+  function findTemporaryChatControl() {
+    const candidates = document.querySelectorAll(
+      "button, [role='button'], [role='switch'], [role='menuitem'], [role='menuitemcheckbox']"
+    );
+    for (const el of candidates) {
+      if (matchesTemporaryChat(el)) return el;
+    }
+    return null;
+  }
+
+  /**
+   * Some builds hide the temporary-chat toggle behind an overflow/kebab menu
+   * in the top bar. Try each candidate menu button, open it, and check if a
+   * temporary-chat item appears.
+   */
+  async function findTemporaryChatControlDeep() {
+    const direct = findTemporaryChatControl();
+    if (direct) return direct;
+
+    const menuButtons = Array.from(
+      document.querySelectorAll("button, [role='button']")
+    ).filter((el) => {
+      const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+      const testId = (el.getAttribute("data-test-id") || "").toLowerCase();
+      return (
+        aria.includes("more options") ||
+        aria.includes("more actions") ||
+        aria.includes("menu") ||
+        aria.includes("overflow") ||
+        testId.includes("more") ||
+        testId.includes("menu")
+      );
+    });
+
+    for (const menuBtn of menuButtons) {
+      menuBtn.click();
+      await new Promise((r) => setTimeout(r, 150));
+      const found = findTemporaryChatControl();
+      if (found) return found;
+      // Close the menu so we don't leak open overlays.
+      const backdrop = document.querySelector(".cdk-overlay-backdrop");
+      if (backdrop) backdrop.click();
+      else menuBtn.click();
+      await new Promise((r) => setTimeout(r, 80));
+    }
+    return null;
+  }
+
+  /**
+   * Read temporary-chat on/off strictly from ARIA. If undetermined, return
+   * null so the caller can fall back to whatever we last believed.
+   */
+  function readTemporaryChatState(el) {
+    if (!el) return null;
+
+    const ariaPressed = (el.getAttribute("aria-pressed") || "").toLowerCase();
+    const ariaChecked = (el.getAttribute("aria-checked") || "").toLowerCase();
+    if (ariaPressed === "true" || ariaChecked === "true") return true;
+    if (ariaPressed === "false" || ariaChecked === "false") return false;
+
+    const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+    // Gemini flips the aria-label based on current state.
+    if (aria.includes("turn off temporary chat")) return true;
+    if (aria.includes("turn on temporary chat")) return false;
+
+    return null;
+  }
+
+  // Local belief about temporary-chat state. Starts Off and flips on user clicks.
+  let tempChatOn = false;
+
+  async function toggleTemporaryChat() {
+    const el = await findTemporaryChatControlDeep();
+    if (!el) return false;
+    const before = readTemporaryChatState(el);
+    el.click();
+    await new Promise((r) => setTimeout(r, 180));
+
+    // Prefer the authoritative state from aria after the click.
+    const after = readTemporaryChatState(findTemporaryChatControl());
+    if (after !== null) {
+      tempChatOn = after;
+    } else if (before !== null) {
+      tempChatOn = !before;
+    } else {
+      tempChatOn = !tempChatOn;
+    }
+    return true;
+  }
+
+  /**
+   * Only show the Temporary toggle when we're on a fresh/new chat and Gemini
+   * actually exposes the control (matching Gemini's real UI: the option
+   * disappears once a conversation is underway or when viewing history).
+   */
+  function syncTemporaryLabel(turnCount) {
+    const btn = overlay?.querySelector(".gsd-btn-temp");
+    if (!btn || !tempLabelEl) return;
+
+    const direct = findTemporaryChatControl();
+    const inExistingChat =
+      (typeof turnCount === "number" && turnCount > 0) ||
+      /\/app\/c_/i.test(location.pathname + location.search);
+    const shouldShow = !inExistingChat && !!direct;
+
+    btn.style.display = shouldShow ? "" : "none";
+
+    if (!shouldShow) {
+      // Force Off state so the label/visual doesn't linger.
+      tempChatOn = false;
+      btn.classList.remove("is-on");
+      if (tempLabelEl.textContent !== "Temporary: Off") {
+        tempLabelEl.textContent = "Temporary: Off";
+      }
+      return;
+    }
+
+    const aria = readTemporaryChatState(direct);
+    if (aria !== null) tempChatOn = aria;
+
+    const next = `Temporary: ${tempChatOn ? "On" : "Off"}`;
+    if (tempLabelEl.textContent !== next) tempLabelEl.textContent = next;
+    btn.classList.toggle("is-on", tempChatOn);
+  }
+
+  /* ====== Mirror Gemini conversation into our doc ====== */
+
+  function isVisibleNode(el) {
+    if (!el) return false;
+    if (el.offsetParent !== null) return true;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 || r.height > 0) return true;
+    // Still hidden — but some Gemini containers use position:fixed so fall
+    // back to checking whether any ancestor has display:none/visibility:hidden.
+    let cur = el;
+    while (cur && cur !== document.body) {
+      const cs = getComputedStyle(cur);
+      if (cs.display === "none" || cs.visibility === "hidden") return false;
+      cur = cur.parentElement;
+    }
+    return true;
+  }
+
+  function collectTurns() {
+    let nodes = Array.from(document.querySelectorAll("user-query, model-response"));
+
+    if (nodes.length === 0) {
+      const all = Array.from(
+        document.querySelectorAll("[class*='user-query'], [class*='model-response']")
+      );
+      nodes = all.filter((n) => !all.some((o) => o !== n && o.contains(n)));
+    } else {
+      nodes = nodes.filter((n) => !nodes.some((o) => o !== n && o.contains(n)));
+    }
+
+    // Drop nodes that aren't visible. Gemini keeps stale user-query /
+    // model-response elements from previous chats attached but hidden after
+    // a "New chat" click, which would otherwise bleed into the doc view.
+    nodes = nodes.filter(isVisibleNode);
+
+    const turns = [];
+    nodes.forEach((node) => {
+      const tag = node.tagName.toLowerCase();
+      const cls = (node.className || "").toString().toLowerCase();
+      const isUser = tag === "user-query" || cls.includes("user-query");
+
+      const clone = node.cloneNode(true);
+
+      // Convert math FIRST, while KaTeX's mathml/annotation subtree is still
+      // intact. If we strip [aria-hidden='true'] first, we risk removing the
+      // wrapper that holds the LaTeX source.
+      convertMathToLatex(clone);
+
+      clone
+        .querySelectorAll(
+          ".visually-hidden, .sr-only, .cdk-visually-hidden"
+        )
+        .forEach((el) => el.remove());
+
+      // Remove aria-hidden elements EXCEPT any we've marked as preserved math.
+      clone.querySelectorAll("[aria-hidden='true']").forEach((el) => {
+        if (el.hasAttribute("data-gsd-math")) return;
+        if (el.closest("[data-gsd-math]")) return;
+        el.remove();
+      });
+
+      const contentEl =
+        clone.querySelector(
+          "message-content, [class*='markdown'], [class*='query-text'], [class*='query-content']"
+        ) || clone;
+
+      const html = contentEl.innerHTML || "";
+      let text = (contentEl.textContent || "").trim();
+      text = text.replace(/^(You said|Gemini said|Bard said|Model response)\s*[:\s]*/i, "").trim();
+      if (!text) return;
+      turns.push({ role: isUser ? "user" : "model", html, text });
+    });
+    return turns;
+  }
+
+  /**
+   * Handle math elements in Gemini's response clone.
+   * Primary strategy: extract LaTeX source and replace with "$...$" text.
+   * Fallback strategy: if we can't find the source, mark the element so the
+   * sanitizer and CSS leave its classes/styles intact, preserving whatever
+   * rendering Gemini produced.
+   */
+  function convertMathToLatex(root) {
+    // Attributes Gemini (and other renderers) use to carry the raw LaTeX
+    // source. If present, the value IS the source — do not gate on heuristics.
+    const SOURCE_ATTRS = [
+      "data-math",
+      "data-latex",
+      "data-tex",
+      "data-math-content",
+      "data-source",
+      "source",
+      "latex",
+      "tex",
+      "alttext"
+    ];
+
+    const getSource = (el) => {
+      if (el.getAttribute) {
+        for (const a of SOURCE_ATTRS) {
+          const v = el.getAttribute(a);
+          if (v && v.trim()) return v.trim();
+        }
+      }
+
+      const ann = el.querySelector?.(
+        "annotation[encoding*='tex' i], annotation[encoding='application/x-tex']"
+      );
+      if (ann && ann.textContent && ann.textContent.trim()) {
+        return ann.textContent.trim();
+      }
+
+      const tag = el.tagName?.toLowerCase() || "";
+      if (tag === "math-renderer" || tag === "math-formula") {
+        const t = (el.textContent || "").trim();
+        if (t && t.length < 2000) return t;
+      }
+
+      return null;
+    };
+
+    const isBlock = (el) => {
+      if (
+        el.matches?.(
+          ".katex-display, .math-display, .math-block, math-block, [display='block']"
+        )
+      )
+        return true;
+      if (el.closest?.(".katex-display, .math-display, .math-block, math-block"))
+        return true;
+      if (el.getAttribute?.("display") === "block") return true;
+      return false;
+    };
+
+    const selector = [
+      ".math-inline",
+      ".math-block",
+      ".math-display",
+      ".katex",
+      ".katex-display",
+      "mjx-container",
+      "math",
+      "math-renderer",
+      "math-formula",
+      "math-block",
+      "math-inline",
+      "[class*='MathJax']",
+      "[class*='mjx-']",
+      "[data-math]",
+      "[data-latex]",
+      "[data-tex]"
+    ].join(", ");
+
+    const all = Array.from(root.querySelectorAll(selector));
+    const outermost = all.filter(
+      (el) => !all.some((o) => o !== el && o.contains(el))
+    );
+
+    outermost.forEach((el) => {
+      const src = getSource(el);
+
+      if (src) {
+        const block = isBlock(el);
+        const wrap = block ? "$$" : "$";
+        const target = el.closest(".katex-display, .math-display") || el;
+
+        if (block) {
+          const p = document.createElement("p");
+          p.textContent = wrap + src + wrap;
+          target.replaceWith(p);
+        } else {
+          target.replaceWith(document.createTextNode(wrap + src + wrap));
+        }
+      } else {
+        // Preserve the visual rendering so something shows up.
+        el.setAttribute("data-gsd-math", "1");
+        el.querySelectorAll("*").forEach((c) =>
+          c.setAttribute("data-gsd-math", "1")
+        );
+      }
+    });
+  }
+
+  function hashTurns(turns) {
+    return turns.map((t) => `${t.role}:${t.text.length}:${t.text.slice(-40)}`).join("|");
+  }
+
+  function renderTurns(turns) {
+    messagesEl.innerHTML = "";
+    if (turns.length === 0) {
+      paginate();
+      return;
+    }
+
+    turns.forEach((turn) => {
+      const body = document.createElement("div");
+      body.className = `gsd-msg gsd-msg-${turn.role}`;
+      if (turn.role === "model") {
+        body.innerHTML = turn.html;
+        sanitizeClone(body);
+      } else {
+        body.textContent = turn.text;
+      }
+      messagesEl.appendChild(body);
+    });
+    paginate();
+  }
+
+  /* ====== Pagination ======
+   *
+   * Walk each "paragraph-level" block inside the doc and, if it straddles
+   * a page boundary, push it onto the next page with margin-top. Also
+   * reserves the bottom margin of each virtual page so content respects the
+   * 96px bottom page margin Docs uses.
+   */
+  const PAGE_HEIGHT = 1056;
+  const GAP_HEIGHT = 20;
+  const PAGE_CYCLE = PAGE_HEIGHT + GAP_HEIGHT; // 1076
+  const BOTTOM_MARGIN = 96;
+
+  function paginate() {
+    if (!overlay) return;
+    const page = overlay.querySelector(".gsd-page");
+    if (!page) return;
+
+    const blocks = [];
+    messagesEl.querySelectorAll(".gsd-msg").forEach((msg) => {
+      // Prefer inner block-level elements (paragraphs, list items, etc.).
+      const inner = msg.querySelectorAll(
+        "p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, table"
+      );
+      if (inner.length > 0) {
+        inner.forEach((el) => blocks.push(el));
+      } else {
+        blocks.push(msg);
+      }
+    });
+    const inputRow = overlay.querySelector(".gsd-input-row");
+    if (inputRow) blocks.push(inputRow);
+
+    // Reset any prior pagination pushes before re-measuring.
+    blocks.forEach((el) => {
+      el.style.removeProperty("margin-top");
+    });
+
+    const pageRect = page.getBoundingClientRect();
+    const pageTopPadding = 96;
+    const USABLE = PAGE_HEIGHT - pageTopPadding - BOTTOM_MARGIN;
+
+    blocks.forEach((el) => {
+      const r = el.getBoundingClientRect();
+      const top = r.top - pageRect.top;
+      const height = r.height;
+      if (height <= 0) return;
+
+      // Blocks larger than a full page content area cannot be kept intact.
+      if (height > USABLE) return;
+
+      const offset = top - pageTopPadding;
+      const cycleIdx = Math.floor(offset / PAGE_CYCLE);
+      const posOnPage = offset - cycleIdx * PAGE_CYCLE;
+      const bottomOnPage = posOnPage + height;
+
+      if (posOnPage < 0 || bottomOnPage > USABLE) {
+        // Push to start of the next virtual page's content area.
+        const nextCycleStart = (cycleIdx + 1) * PAGE_CYCLE;
+        const targetTop = pageTopPadding + nextCycleStart;
+        const push = targetTop - top;
+        if (push > 0) {
+          // Use setProperty with !important so CSS `margin: 0 !important` on
+          // message descendants cannot silently kill the pagination push.
+          el.style.setProperty("margin-top", push + "px", "important");
+        }
+      }
+    });
+  }
+
+  function sanitizeClone(root) {
+    root
+      .querySelectorAll(
+        "button, [class*='action'], [class*='copy'], [class*='feedback'], [class*='thumb']"
+      )
+      .forEach((el) => el.remove());
+
+    root
+      .querySelectorAll(
+        ".visually-hidden, .sr-only, .cdk-visually-hidden, [aria-hidden='true']"
+      )
+      .forEach((el) => el.remove());
+
+    root.querySelectorAll("*").forEach((el) => {
+      if (el.hasAttribute("data-gsd-math")) return;
+      el.removeAttribute("style");
+      el.removeAttribute("class");
+    });
+  }
+
+  function syncMessages() {
+    if (!active) return;
+    // If the URL changed (new chat, different chat, back to landing), force a
+    // clean re-render so stale turns from the previous chat never linger.
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      lastHash = "__force__";
+      if (messagesEl) messagesEl.innerHTML = "";
+    }
+    const turns = collectTurns();
+    const h = hashTurns(turns);
+    if (h !== lastHash) {
+      lastHash = h;
+      renderTurns(turns);
+    }
+    syncTitle();
+    syncModelLabel();
+    syncTemporaryLabel(turns.length);
+  }
+
+  /* ====== Title sync ====== */
+
+  function syncTitle() {
+    const raw = document.title || "";
+    let chat = raw
+      .replace(/\s*[-—–|]\s*(Google\s+Gemini|Gemini|Google Docs).*$/i, "")
+      .trim();
+    if (!chat || /^(gemini|google gemini|new chat)$/i.test(chat)) chat = "Untitled";
+    if (titleEl && titleEl.textContent !== chat) titleEl.textContent = chat;
+
+    const desiredTab = chat + " - Google Docs";
+    if (document.title !== desiredTab) document.title = desiredTab;
+  }
+
+  function syncModelLabel() {
+    if (!modelLabelEl) return;
+    const name = readCurrentModelName();
+    if (name && modelLabelEl.textContent !== name) {
+      modelLabelEl.textContent = name;
+    }
+  }
+
+  /* ====== Enable / disable ====== */
 
   function enable() {
     active = true;
+    if (!overlay) buildOverlay();
     document.documentElement.classList.add(STEALTH_CLASS);
-    if (!headerEl) {
-      headerEl = buildHeader();
-      toolbarEl = buildToolbar();
-    }
-    document.documentElement.appendChild(headerEl);
-    document.documentElement.appendChild(toolbarEl);
-    originalTitle = document.title;
-    document.title = "Untitled document - Google Docs";
-    chrome.storage.local.set({ gsdActive: true });
+    // Reset all sync state so we always render from scratch when re-entering
+    // stealth mode. Otherwise stale turns from the previous session persist.
+    lastHash = "__force__";
+    lastUrl = "";
+    if (messagesEl) messagesEl.innerHTML = "";
+    syncMessages();
+    if (syncInterval) clearInterval(syncInterval);
+    syncInterval = setInterval(syncMessages, 700);
+    safeStorageSet({ gsdActive: true });
   }
 
   function disable() {
     active = false;
     document.documentElement.classList.remove(STEALTH_CLASS);
-    headerEl?.remove();
-    toolbarEl?.remove();
-    if (originalTitle) document.title = originalTitle;
-    chrome.storage.local.set({ gsdActive: false });
+    if (syncInterval) {
+      clearInterval(syncInterval);
+      syncInterval = null;
+    }
+    safeStorageSet({ gsdActive: false });
   }
 
   function toggle() {
@@ -128,31 +959,43 @@
     else enable();
   }
 
+  /* ====== Hotkey, messages, init ====== */
+
   document.addEventListener("keydown", (e) => {
+    if (!shortcutEnabled) return;
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === "KeyG") {
       e.preventDefault();
       toggle();
     }
   });
 
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.action === "gsd-toggle") toggle();
-  });
-
-  const titleObs = new MutationObserver(() => {
-    if (active && !document.title.includes("Google Docs")) {
-      document.title = "Untitled document - Google Docs";
-    }
-  });
+  if (hasExtensionContext()) {
+    chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+      if (msg.action === "gsd-toggle") {
+        toggle();
+        sendResponse({ ok: true, active });
+      } else if (msg.action === "gsd-set") {
+        if (msg.value) enable();
+        else disable();
+        sendResponse({ ok: true, active });
+      } else if (msg.action === "gsd-shortcut") {
+        shortcutEnabled = !!msg.value;
+        sendResponse({ ok: true, shortcutEnabled });
+      } else if (msg.action === "gsd-status") {
+        sendResponse({ active, shortcutEnabled });
+      }
+      return true;
+    });
+  }
 
   function init() {
-    titleObs.observe(
-      document.querySelector("title") || document.head,
-      { childList: true, subtree: true, characterData: true }
+    safeStorageGet(
+      ["gsdActive", "gsdShortcutEnabled"],
+      (data) => {
+        shortcutEnabled = data.gsdShortcutEnabled !== false;
+        if (data.gsdActive) enable();
+      }
     );
-    chrome.storage.local.get("gsdActive", (data) => {
-      if (data.gsdActive) enable();
-    });
   }
 
   if (document.head) init();
