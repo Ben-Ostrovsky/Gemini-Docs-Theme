@@ -2,9 +2,7 @@
 
 A lightweight Chrome extension that applies a Docs-themed writing interface on `gemini.google.com`.
 
-## Disclaimer
-
-This project is unofficial and is **not affiliated with, endorsed by, or sponsored by Google**.
+**Disclaimer:** This project is unofficial and is not affiliated with Google.
 
 ## Features
 
@@ -12,6 +10,7 @@ This project is unofficial and is **not affiliated with, endorsed by, or sponsor
 - Quick toggle from popup or keyboard shortcut
 - Docs-themed home view with recent chats, search, and blank new-chat card
 - Local-only behavior (no external servers or analytics)
+- Easy toggle back and forth (scrolling is consistent, shortcut support).
 
 ## Screenshots
 
