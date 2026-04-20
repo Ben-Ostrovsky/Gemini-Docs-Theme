@@ -14,7 +14,7 @@ A lightweight Chrome extension that applies a Docs-themed writing interface on `
 
 ## Screenshots
 
-Add your screenshots here before publishing:
+Some screenshots:
 
 ![Main chat view](./screenshots/chat.png)
 ![New chat view](./screenshots/newChat.png)
