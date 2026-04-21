@@ -382,6 +382,35 @@
 
   let homeActive = false;
 
+  function findGeminiSearchChatsButton() {
+    const candidates = document.querySelectorAll('button, [role="button"], a');
+    for (const el of candidates) {
+      const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+      const testId = (el.getAttribute("data-test-id") || "").toLowerCase();
+      const title = (el.getAttribute("title") || "").toLowerCase();
+      if (
+        aria === "search chats" ||
+        aria === "search conversations" ||
+        aria === "find conversations" ||
+        testId.includes("search-chat") ||
+        testId.includes("search-conversation") ||
+        title === "search chats" ||
+        title === "search conversations"
+      ) {
+        return el;
+      }
+      // Gemini sometimes uses a generic "Search" aria-label on the sidebar search icon
+      if (
+        (aria === "search" || title === "search") &&
+        (el.closest("nav, sidebar, [class*='sidebar'], [class*='nav']") ||
+          el.closest("[class*='sidenav'], [class*='side-nav'], [class*='drawer']"))
+      ) {
+        return el;
+      }
+    }
+    return null;
+  }
+
   function showHome() {
     if (!overlay) return;
     homeActive = true;
@@ -393,6 +422,10 @@
       search.value = "";
       setTimeout(() => search.focus(), 0);
     }
+    // Drive the underlying Gemini page to its search-chats view so that
+    // toggling stealth off lands there rather than in a specific open chat.
+    const searchBtn = findGeminiSearchChatsButton();
+    if (searchBtn) searchBtn.click();
   }
 
   function hideHome() {
@@ -1120,6 +1153,14 @@
     lastHash = "__force__";
     lastUrl = "";
     if (messagesEl) messagesEl.innerHTML = "";
+
+    // If the user navigated to a specific chat while stealth was off, dismiss
+    // docs home so we show that chat rather than the stale home view.
+    if (/\/app\/c_/i.test(location.pathname + location.search) && homeActive) {
+      homeActive = false;
+      overlay.classList.remove("gsd-home-active");
+    }
+
     syncMessages();
     if (syncInterval) clearInterval(syncInterval);
     syncInterval = setInterval(syncMessages, 700);
