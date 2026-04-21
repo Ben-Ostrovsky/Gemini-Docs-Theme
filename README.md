@@ -12,7 +12,7 @@ This is just for fun and obviously not affiliated with Google.
 
 ## Screenshots
 
-**Popup**
+**Switch on stealth view**
 
 ![Popup view](./screenshots/popup.png)
 

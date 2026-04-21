@@ -1154,9 +1154,12 @@
     lastUrl = "";
     if (messagesEl) messagesEl.innerHTML = "";
 
-    // If the user navigated to a specific chat while stealth was off, dismiss
-    // docs home so we show that chat rather than the stale home view.
-    if (/\/app\/c_/i.test(location.pathname + location.search) && homeActive) {
+    // If the user navigated to any concrete chat while stealth was off,
+    // dismiss docs home so we show that chat rather than stale home state.
+    const hasOpenChat =
+      /\/app\/c_/i.test(location.pathname + location.search) ||
+      collectTurns().length > 0;
+    if (hasOpenChat && homeActive) {
       homeActive = false;
       overlay.classList.remove("gsd-home-active");
     }
