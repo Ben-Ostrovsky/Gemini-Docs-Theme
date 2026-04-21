@@ -9,8 +9,8 @@
   let modelLabelEl = null;
   let tempLabelEl = null;
   let syncInterval = null;
-  let lastHash = "";
   let lastUrl = "";
+  let renderedTurns = [];
 
   function hasExtensionContext() {
     return !!(typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.id);
@@ -217,6 +217,7 @@
         showSending(true);
         const ok = await sendToGemini(text);
         showSending(false);
+        focusComposerSoon();
         if (!ok) {
           appendEphemeralError("Couldn't find Gemini's input. Try refreshing the page.");
         }
@@ -287,10 +288,26 @@
       const btn = findSendButton();
       if (btn && !btn.disabled) {
         btn.click();
+        focusComposerSoon();
         return true;
       }
     }
+    focusComposerSoon();
     return false;
+  }
+
+  function focusComposerSoon() {
+    setTimeout(() => {
+      if (!active || !inputEl) return;
+      inputEl.focus();
+      const sel = window.getSelection();
+      if (!sel) return;
+      const range = document.createRange();
+      range.selectNodeContents(inputEl);
+      range.collapse(false);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }, 0);
   }
 
   /* ====== New chat ====== */
@@ -940,29 +957,78 @@
     });
   }
 
-  function hashTurns(turns) {
-    return turns.map((t) => `${t.role}:${t.text.length}:${t.text.slice(-40)}`).join("|");
+  function renderTurnEl(turn) {
+    const body = document.createElement("div");
+    body.className = `gsd-msg gsd-msg-${turn.role}`;
+    if (turn.role === "model") {
+      body.innerHTML = turn.html;
+      sanitizeClone(body);
+    } else {
+      body.textContent = turn.text;
+    }
+    return body;
   }
 
-  function renderTurns(turns) {
+  function fullRender(turns) {
     messagesEl.innerHTML = "";
+    turns.forEach((turn) => messagesEl.appendChild(renderTurnEl(turn)));
+    renderedTurns = turns.slice();
+    paginateInputOnly();
+  }
+
+  /*
+   * Try to update the DOM incrementally:
+   *   - If only the very last turn has changed (streamed new text), replace
+   *     just that element's contents. Everything above stays put.
+   *   - If turns were added / earlier turns changed (which can happen on nav
+   *     or regeneration), fall back to a full rebuild.
+   */
+  function updateRender(turns) {
     if (turns.length === 0) {
-      paginate();
+      if (renderedTurns.length !== 0) fullRender(turns);
       return;
     }
 
-    turns.forEach((turn) => {
-      const body = document.createElement("div");
-      body.className = `gsd-msg gsd-msg-${turn.role}`;
-      if (turn.role === "model") {
-        body.innerHTML = turn.html;
-        sanitizeClone(body);
-      } else {
-        body.textContent = turn.text;
+    const sameLen = renderedTurns.length === turns.length;
+    let earlierChanged = false;
+
+    if (sameLen) {
+      for (let i = 0; i < turns.length - 1; i++) {
+        const a = renderedTurns[i];
+        const b = turns[i];
+        if (!a || a.role !== b.role || a.text !== b.text) {
+          earlierChanged = true;
+          break;
+        }
       }
-      messagesEl.appendChild(body);
-    });
-    paginate();
+    }
+
+    if (!sameLen || earlierChanged) {
+      fullRender(turns);
+      return;
+    }
+
+    const lastIdx = turns.length - 1;
+    const last = turns[lastIdx];
+    const prevLast = renderedTurns[lastIdx];
+
+    if (prevLast && prevLast.role === last.role && prevLast.text === last.text) {
+      return;
+    }
+
+    const lastEl = messagesEl.children[lastIdx];
+    if (!lastEl) {
+      fullRender(turns);
+      return;
+    }
+    if (last.role === "model") {
+      lastEl.innerHTML = last.html;
+      sanitizeClone(lastEl);
+    } else {
+      lastEl.textContent = last.text;
+    }
+    renderedTurns = turns.slice();
+    paginateInputOnly();
   }
 
   /* ====== Pagination ======
@@ -977,61 +1043,42 @@
   const PAGE_CYCLE = PAGE_HEIGHT + GAP_HEIGHT; // 1076
   const BOTTOM_MARGIN = 96;
 
-  function paginate() {
+  /*
+   * Message text flows continuously down the page; the multi-page look is
+   * purely decorative (background rules). We only paginate the input row:
+   * if it would straddle a page boundary, push it to the next page so the
+   * composer always sits at the start of a fresh paragraph, not split.
+   */
+  function paginateInputOnly() {
     if (!overlay) return;
     const page = overlay.querySelector(".gsd-page");
-    if (!page) return;
-
-    const blocks = [];
-    messagesEl.querySelectorAll(".gsd-msg").forEach((msg) => {
-      // Prefer inner block-level elements (paragraphs, list items, etc.).
-      const inner = msg.querySelectorAll(
-        "p, li, h1, h2, h3, h4, h5, h6, pre, blockquote, table"
-      );
-      if (inner.length > 0) {
-        inner.forEach((el) => blocks.push(el));
-      } else {
-        blocks.push(msg);
-      }
-    });
     const inputRow = overlay.querySelector(".gsd-input-row");
-    if (inputRow) blocks.push(inputRow);
+    if (!page || !inputRow) return;
 
-    // Reset any prior pagination pushes before re-measuring.
-    blocks.forEach((el) => {
-      el.style.removeProperty("margin-top");
-    });
+    inputRow.style.removeProperty("margin-top");
 
     const pageRect = page.getBoundingClientRect();
     const pageTopPadding = 96;
     const USABLE = PAGE_HEIGHT - pageTopPadding - BOTTOM_MARGIN;
 
-    blocks.forEach((el) => {
-      const r = el.getBoundingClientRect();
-      const top = r.top - pageRect.top;
-      const height = r.height;
-      if (height <= 0) return;
+    const r = inputRow.getBoundingClientRect();
+    const top = r.top - pageRect.top;
+    const height = r.height;
+    if (height <= 0 || height > USABLE) return;
 
-      // Blocks larger than a full page content area cannot be kept intact.
-      if (height > USABLE) return;
+    const offset = top - pageTopPadding;
+    const cycleIdx = Math.floor(offset / PAGE_CYCLE);
+    const posOnPage = offset - cycleIdx * PAGE_CYCLE;
+    const bottomOnPage = posOnPage + height;
 
-      const offset = top - pageTopPadding;
-      const cycleIdx = Math.floor(offset / PAGE_CYCLE);
-      const posOnPage = offset - cycleIdx * PAGE_CYCLE;
-      const bottomOnPage = posOnPage + height;
-
-      if (posOnPage < 0 || bottomOnPage > USABLE) {
-        // Push to start of the next virtual page's content area.
-        const nextCycleStart = (cycleIdx + 1) * PAGE_CYCLE;
-        const targetTop = pageTopPadding + nextCycleStart;
-        const push = targetTop - top;
-        if (push > 0) {
-          // Use setProperty with !important so CSS `margin: 0 !important` on
-          // message descendants cannot silently kill the pagination push.
-          el.style.setProperty("margin-top", push + "px", "important");
-        }
+    if (posOnPage < 0 || bottomOnPage > USABLE) {
+      const nextCycleStart = (cycleIdx + 1) * PAGE_CYCLE;
+      const targetTop = pageTopPadding + nextCycleStart;
+      const push = targetTop - top;
+      if (push > 0) {
+        inputRow.style.setProperty("margin-top", push + "px", "important");
       }
-    });
+    }
   }
 
   function sanitizeClone(root) {
@@ -1056,19 +1103,13 @@
 
   function syncMessages() {
     if (!active) return;
-    // If the URL changed (new chat, different chat, back to landing), force a
-    // clean re-render so stale turns from the previous chat never linger.
     if (location.href !== lastUrl) {
       lastUrl = location.href;
-      lastHash = "__force__";
       if (messagesEl) messagesEl.innerHTML = "";
+      renderedTurns = [];
     }
     const turns = collectTurns();
-    const h = hashTurns(turns);
-    if (h !== lastHash) {
-      lastHash = h;
-      renderTurns(turns);
-    }
+    updateRender(turns);
     syncTitle();
     syncModelLabel();
     syncTemporaryLabel(turns.length);
@@ -1150,8 +1191,8 @@
     document.documentElement.classList.add(STEALTH_CLASS);
     // Reset all sync state so we always render from scratch when re-entering
     // stealth mode. Otherwise stale turns from the previous session persist.
-    lastHash = "__force__";
     lastUrl = "";
+    renderedTurns = [];
     if (messagesEl) messagesEl.innerHTML = "";
 
     // If the user navigated to any concrete chat while stealth was off,
@@ -1166,7 +1207,7 @@
 
     syncMessages();
     if (syncInterval) clearInterval(syncInterval);
-    syncInterval = setInterval(syncMessages, 700);
+    syncInterval = setInterval(syncMessages, 150);
     safeStorageSet({ gsdActive: true });
 
     // Apply after layout + pagination settle so scrollHeight is correct.

@@ -305,27 +305,11 @@ html.gsd-stealth #gsd-overlay {
 }
 
 /*
- * Safety overlay: in the rare case the JS paginator misses a block (e.g. a
- * very tall paragraph), this mask hides any content that happens to fall in
- * the 20px workspace gap so text never appears on the gray band.
+ * Previously this layer masked content in gap zones to keep text off the
+ * gray band, but it also masked *real* text whenever a long paragraph
+ * spilled across a page edge. We now let text flow continuously through
+ * gap zones (only the input row is paginated), so the mask is removed.
  */
-#gsd-overlay .gsd-page::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  pointer-events: none;
-  z-index: 2;
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 1056px,
-    #f9fbfd 1056px,
-    #f9fbfd 1076px
-  );
-}
 
 #gsd-overlay .gsd-page > * {
   position: relative;
@@ -419,27 +403,31 @@ html.gsd-stealth #gsd-overlay {
 
 #gsd-overlay .gsd-input-row {
   position: relative;
-  margin-top: 24px;
-  padding-top: 14px;
+  margin-top: 12pt;
+  padding-top: 0;
 }
 
 #gsd-overlay .gsd-input {
   font-family: "Times New Roman", Times, serif;
   font-size: 12pt;
   line-height: 1.5;
-  color: #202124;
+  color: #9aa0a6;
   outline: none;
   border: none;
   min-height: 24px;
   white-space: pre-wrap;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: break-word;
   caret-color: #202124;
 }
 
 #gsd-overlay .gsd-input:empty::before {
   content: attr(data-placeholder);
   color: #bdc1c6;
-  font-style: italic;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  font-style: normal;
   pointer-events: none;
 }
 
